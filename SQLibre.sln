@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SQLibre", "SQLibre\SQLibre.csproj", "{C70E5BFB-BE88-46ED-BD86-BFAAB1AA8D2C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{30B0AAA5-4110-4BFB-B174-B6FC47D1596D}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SQLibre.TestConsole", "SQLibre.TestConsole\SQLibre.TestConsole.csproj", "{88AE3C83-4CA7-4A4A-A3C5-D4C198690FDD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C70E5BFB-BE88-46ED-BD86-BFAAB1AA8D2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C70E5BFB-BE88-46ED-BD86-BFAAB1AA8D2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C70E5BFB-BE88-46ED-BD86-BFAAB1AA8D2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C70E5BFB-BE88-46ED-BD86-BFAAB1AA8D2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88AE3C83-4CA7-4A4A-A3C5-D4C198690FDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88AE3C83-4CA7-4A4A-A3C5-D4C198690FDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88AE3C83-4CA7-4A4A-A3C5-D4C198690FDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88AE3C83-4CA7-4A4A-A3C5-D4C198690FDD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DD09C3A6-4310-40D3-878A-08785035223C}
+	EndGlobalSection
+EndGlobal
