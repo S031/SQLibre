@@ -76,6 +76,7 @@ namespace SQLibre
 		public string DateTimeStringFormat { get; init; }
 		public DateTimeStyles DateTimeStyle { get; init; }
 		public object? Key { get; init; }
+		public bool UsingAutoCommit { get; set; }
 
 		public SQLiteConnectionOptions(string databasePath, bool storeDateTimeAsTicks = false)
 			: this(databasePath, DefaultOpenFlags, storeDateTimeAsTicks)

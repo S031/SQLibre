@@ -19,12 +19,12 @@ namespace SQLibre
 		private SQLiteColumnCollection? _collumns;
 		private object?[]? _values;
 		private readonly SQLiteContext _context;
-		private SQLIteCommand _command;
+		private SQLiteCommand _command;
 		private bool _storeDateTimeAsTicks;
 		private string _dateTimeSqliteDefaultFormat;
 		private System.Globalization.DateTimeStyles _dateTimeStyle;
 
-		internal SQLiteReader(SQLiteContext context, SQLIteCommand command)
+		internal SQLiteReader(SQLiteContext context, SQLiteCommand command)
 		{
 			_context = context;
 			_storeDateTimeAsTicks = context.Connection.StoreDateTimeAsTicks;

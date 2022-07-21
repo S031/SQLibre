@@ -35,6 +35,7 @@ namespace SQLibre
 	{
 
 		private IntPtr _handle;
+		private int _inTransaction;
 
 		private readonly SQLiteConnectionOptions _connectionOptions;
 		public string DateTimeSqliteDefaultFormat => _connectionOptions.DateTimeStringFormat;
@@ -45,6 +46,7 @@ namespace SQLibre
 		public string DatabasePath => _connectionOptions.DatabasePath;
 		public DbHandle Handle => _handle;
 		public ConnectionState State { get; internal set; } = ConnectionState.Closed;
+		public bool UsingAutoCommit { get => _connectionOptions.UsingAutoCommit; set => _connectionOptions.UsingAutoCommit = value; }
 
 
 		public static void Config(int configOptions, int value)
@@ -66,6 +68,29 @@ namespace SQLibre
 
 		public void EnableWriteAhead() => Execute("PRAGMA journal_mode=WAL");
 
+		public void BeginTransaction()
+		{
+			if (_inTransaction == 1)
+				throw new InvalidOperationException("transaction already active");
+			Interlocked.Increment(ref _inTransaction);
+			Execute("begin transaction;");
+		}
+
+		public void Commit()
+		{
+			if (_inTransaction == 0)
+				throw new InvalidOperationException("transaction does not exist");
+			Execute("commit transaction;");
+			Interlocked.Decrement(ref _inTransaction);
+		}
+
+		public void Rollback()
+		{
+			if (_inTransaction == 0)
+				throw new InvalidOperationException("transaction does not exist");
+			Execute("commit transaction;");
+		}
+
 		public int Execute(string commandText)
 			=> ExecuteInternal(_handle, (Utf8z)commandText);
 
@@ -76,7 +101,22 @@ namespace SQLibre
 		{
 			using (SQLiteContext ctx = new SQLiteContext(this))
 			{
-				usingDelegate(ctx);
+				if (!UsingAutoCommit)
+					usingDelegate(ctx);
+				else
+				{
+					try
+					{
+						BeginTransaction();
+						usingDelegate(ctx);
+						Commit();
+					}
+					catch
+					{
+						Rollback();
+						throw;
+					}
+				}
 			}
 		}
 
@@ -84,7 +124,23 @@ namespace SQLibre
 		{
 			using (SQLiteContext ctx = new SQLiteContext(this))
 			{
-				return usingDelegate(ctx);
+				if (!UsingAutoCommit)
+					return usingDelegate(ctx);
+				else
+				{
+					try
+					{
+						BeginTransaction();
+						var result = usingDelegate(ctx);
+						Commit();
+						return result;
+					}
+					catch
+					{
+						Rollback(); ;
+						throw;
+					}
+				}
 			}
 		}
 
@@ -96,7 +152,7 @@ namespace SQLibre
 			GC.SuppressFinalize(this);
 		}
 
-		private static unsafe int ExecuteInternal(DbHandle db, ReadOnlySpan<byte> statement)
+		internal static unsafe int ExecuteInternal(DbHandle db, ReadOnlySpan<byte> statement)
 		{
 			var rc = sqlite3_exec(db, (Utf8z)statement, IntPtr.Zero, IntPtr.Zero, out var p_errMsg);
 			if (p_errMsg != IntPtr.Zero)

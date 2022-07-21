@@ -14,7 +14,7 @@ namespace SQLibre
 	public sealed class SQLiteContext : IDisposable
 	{
 		private readonly SQLiteConnection _connection;
-		private readonly List<WeakReference<SQLIteCommand>> _commands = new();
+		private readonly List<WeakReference<SQLiteCommand>> _commands = new();
 
 		internal SQLiteContext(SQLiteConnection connection)
 		{
@@ -31,9 +31,21 @@ namespace SQLibre
 
 		public DbHandle Handle => _connection.Handle;
 
+		public void BeginTransaction() => _connection.BeginTransaction();
+
+		public void Commit() => _connection.Commit();
+
+		public void Rollback() => _connection.Rollback();
+
+		public int Execute(string commandText)
+			=> SQLiteConnection.ExecuteInternal(_connection.Handle, (Utf8z)commandText);
+
+		public int Execute(ReadOnlySpan<byte> commandText)
+			=> SQLiteConnection.ExecuteInternal(_connection.Handle, commandText);
+
 		public int Execute(string commandText, params object[] parameters)
 		{
-			using (SQLIteCommand cmd = CreateCommand(commandText))
+			using (SQLiteCommand cmd = CreateCommand(commandText))
 			{
 				int i = 0;
 				string pName = string.Empty;
@@ -52,7 +64,7 @@ namespace SQLibre
 
 		public T? ExecuteScalar<T>(string commandText, params object[] parameters)
 		{
-			using (SQLIteCommand cmd = CreateCommand(commandText))
+			using (SQLiteCommand cmd = CreateCommand(commandText))
 			{
 				int i = 0;
 				string pName = string.Empty;
@@ -77,7 +89,7 @@ namespace SQLibre
 
 		public SQLiteReader ExecuteReader(string commandText, params object[] parameters)
 		{
-			SQLIteCommand cmd = CreateCommand(commandText);
+			SQLiteCommand cmd = CreateCommand(commandText);
 			int i = 0;
 			string pName = string.Empty;
 
@@ -93,11 +105,11 @@ namespace SQLibre
 			return cmd.ExecuteReader();
 		}
 
-		public SQLIteCommand CreateCommand(string statement) => CreateCommand((ReadOnlySpan<byte>)(Utf8z)statement);
+		public SQLiteCommand CreateCommand(string statement) => CreateCommand((ReadOnlySpan<byte>)(Utf8z)statement);
 
-		public SQLIteCommand CreateCommand(ReadOnlySpan<byte> statement)
+		public SQLiteCommand CreateCommand(ReadOnlySpan<byte> statement)
 		{
-			var cmd = new SQLIteCommand(this, statement);
+			var cmd = new SQLiteCommand(this, statement);
 			AddCommand(cmd);
 			return cmd;
 		}
@@ -116,10 +128,10 @@ namespace SQLibre
 
 		}
 
-		internal void AddCommand(SQLIteCommand command)
-			=> _commands.Add(new WeakReference<SQLIteCommand>(command));
+		internal void AddCommand(SQLiteCommand command)
+			=> _commands.Add(new WeakReference<SQLiteCommand>(command));
 
-		internal void RemoveCommand(SQLIteCommand command)
+		internal void RemoveCommand(SQLiteCommand command)
 		{
 			for (var i = _commands.Count - 1; i >= 0; i--)
 			{

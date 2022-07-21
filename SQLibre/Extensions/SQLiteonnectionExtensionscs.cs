@@ -7,7 +7,7 @@ namespace SQLibre
 {
 	public static class SQLiteonnectionExtensions
 	{
-		public static JsonElement ExecuteJson(this SQLIteCommand command, JsonSerializerOptions? options = null)
+		public static JsonElement ExecuteJson(this SQLiteCommand command, JsonSerializerOptions? options = null)
 		{
 			using (var r = command.ExecuteReader())
 			{
@@ -16,7 +16,7 @@ namespace SQLibre
 				return default;
 			}
 		}
-		public static T? ExecuteJson<T>(this SQLIteCommand command, JsonSerializerOptions? options = null)
+		public static T? ExecuteJson<T>(this SQLiteCommand command, JsonSerializerOptions? options = null)
 		{
 			using (var r = command.ExecuteReader())
 			{

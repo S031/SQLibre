@@ -7,7 +7,8 @@ const string _connectionString = @"DatabasePath=DATA\chinook.db";
 SQLiteConnectionOptions connectionOptions = new SQLiteConnectionOptions(_connectionString);
 SQLiteConnectionOptions connectionOptionsNoMutex = new SQLiteConnectionOptions(_connectionString)
 {
-	OpenFlags = (SQLiteConnectionOptions.DefaultOpenFlags & ~SQLiteOpenFlags.SQLITE_OPEN_FULLMUTEX) | SQLiteOpenFlags.SQLITE_OPEN_NOMUTEX
+	OpenFlags = (SQLiteConnectionOptions.DefaultOpenFlags & ~SQLiteOpenFlags.SQLITE_OPEN_FULLMUTEX) | SQLiteOpenFlags.SQLITE_OPEN_NOMUTEX, 
+	UsingAutoCommit = true
 };
 
 Console.WriteLine("Start create database test");
@@ -28,13 +29,13 @@ Console.WriteLine("End create database test");
 string sql = @"select * from invoices order by RowId desc Limit 2;";
 Console.WriteLine("Connection open test");
 DateTime d = DateTime.Now;
-for (int i = 0; i < loop_count; i++)
-{
-	using (var db1 = new SQLiteConnection(connectionOptions))
+	new SQLiteConnection(connectionOptionsNoMutex).Using(ctx =>
 	{
-		db1.Execute(sql);
-	}
-}
+		for (int i = 0; i < loop_count; i++)
+		{
+			ctx.Execute(sql);
+		}
+	});
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
 
@@ -92,10 +93,11 @@ db.Using(ctx =>
 			r = cmd.ExecuteJson();
 	});
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 Console.WriteLine("Start normal select test");
 d = DateTime.Now;
+db.Execute("begin transaction;");
 for (int i = 0; i < loop_count; i++)
 {
 	db.Using(ctx =>
@@ -104,13 +106,14 @@ for (int i = 0; i < loop_count; i++)
 			r = cmd.ExecuteJson();
 	});
 }
+db.Execute("commit transaction;");
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 Console.WriteLine("Start parallel select test");
 d = DateTime.Now;
-var db2 = new SQLiteConnection(connectionOptionsNoMutex);
+var db2 = new SQLiteConnection(connectionOptions);
 var t = Parallel.For(0, loop_count, i =>
 {
 	db2.Using(ctx =>
@@ -122,7 +125,7 @@ var t = Parallel.For(0, loop_count, i =>
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 Console.WriteLine(r.GetProperty("BillingCountry").GetString());
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 Console.WriteLine("Start select reader test");
 d = DateTime.Now;
@@ -141,7 +144,7 @@ db2.Using(ctx =>
 });
 Console.WriteLine($"Finished {count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 db.Using(ctx =>
 {
@@ -152,7 +155,7 @@ db.Using(ctx =>
 	}
 });
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 
 const string sql4 = @"
@@ -184,7 +187,7 @@ db.Using(async db =>
 	var total = (DateTime.Now - d).TotalSeconds;
 	count = Convert.ToInt32(db.ExecuteScalar<long>("Select count(*) from Test"));
 	Console.WriteLine($"Finished {count} calls with {total} ms");
-	Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+	Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 	using (var r1 = db.CreateCommand("Select Count(value) from json_each(?) where value = 300.14")
 		//.Bind(1, new string[] { "five", "six", "seven", "eight" })
@@ -198,7 +201,7 @@ db.Using(async db =>
 });
 
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 
 /*

@@ -20,14 +20,14 @@ namespace SQLibre
 		public static int Count => _counter;
 	}
 
-	public sealed class SQLIteCommand : IDisposable
+	public sealed class SQLiteCommand : IDisposable
 	{
 		private SQLiteContext _context;
 		internal IntPtr _stmt;
 
 		internal IntPtr Handle => _stmt;
 
-		internal SQLIteCommand(SQLiteContext context, ReadOnlySpan<byte> statement)
+		internal SQLiteCommand(SQLiteContext context, ReadOnlySpan<byte> statement)
 		{
 			_context = context;
 			var rc = sqlite3_prepare_v2(context.Handle, (Utf8z)statement, out IntPtr stmt, out var tail);
@@ -37,182 +37,185 @@ namespace SQLibre
 		}
 
 		#region binding
-		public SQLIteCommand Bind(int paramIndex, int paramValue)
+		public SQLiteCommand Bind(int paramIndex, int paramValue)
 		{
 			_ = sqlite3_bind_int(_stmt, paramIndex, paramValue);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, bool paramValue)
+		public SQLiteCommand Bind(int paramIndex, bool paramValue)
 		{
 			_ = sqlite3_bind_int(_stmt, paramIndex, paramValue ? 1 : 0);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, long paramValue)
+		public SQLiteCommand Bind(int paramIndex, long paramValue)
 		{
 			_ = sqlite3_bind_int64(_stmt, paramIndex, paramValue);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, double paramValue)
+		public SQLiteCommand Bind(int paramIndex, double paramValue)
 		{
 			_ = sqlite3_bind_double(_stmt, paramIndex, paramValue);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex)
+		public SQLiteCommand Bind(int paramIndex)
 		{
 			_ = sqlite3_bind_null(_stmt, paramIndex);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, byte[] paramValue)
+		public SQLiteCommand Bind(int paramIndex, byte[] paramValue)
 		{
 			_ = sqlite3_bind_blob(_stmt, paramIndex, paramValue);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, IEnumerable<int> paramValue)
+		public SQLiteCommand Bind(int paramIndex, IEnumerable<int> paramValue)
 		{
 			_ = Bind(paramIndex, '[' + string.Join(',', paramValue) + ']');
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, IEnumerable<long> paramValue)
+		public SQLiteCommand Bind(int paramIndex, IEnumerable<long> paramValue)
 		{
 			_ = Bind(paramIndex, '[' + string.Join(',', paramValue) + ']');
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, IEnumerable<double> paramValue)
+		public SQLiteCommand Bind(int paramIndex, IEnumerable<double> paramValue)
 		{
 			_ = Bind(paramIndex, '[' + string.Join(',', paramValue.Select(d => d.ToString(CultureInfo.InvariantCulture))) + ']');
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, IEnumerable<string> paramValue)
+		public SQLiteCommand Bind(int paramIndex, IEnumerable<string> paramValue)
 		{
 			_ = Bind(paramIndex, !paramValue.Any() ? "[]" : "[\"" + string.Join("\",\"", paramValue) + "\"]");
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, string paramValue)
+		public SQLiteCommand Bind(int paramIndex, string paramValue)
 		{
 			_ = sqlite3_bind_text(_stmt, paramIndex, paramValue);
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, Guid paramValue)
+		public SQLiteCommand Bind(int paramIndex, Guid paramValue)
 		{
 			_ = sqlite3_bind_text(_stmt, paramIndex, paramValue.ToString());
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, DateTime paramValue)
+		public SQLiteCommand Bind(int paramIndex, DateTime paramValue)
 		{
 			_ = _context.Connection.StoreDateTimeAsTicks ? sqlite3_bind_int64(_stmt, paramIndex, paramValue.Ticks)
 					: sqlite3_bind_text(_stmt, paramIndex, paramValue.ToString(_context.Connection.DateTimeSqliteDefaultFormat));
 			return this;
 		}
-		public SQLIteCommand Bind(int paramIndex, TimeSpan paramValue)
+		public SQLiteCommand Bind(int paramIndex, TimeSpan paramValue)
 		{
 			_ = _context.Connection.StoreDateTimeAsTicks ? sqlite3_bind_int64(_stmt, paramIndex, paramValue.Ticks)
 					: sqlite3_bind_text(_stmt, paramIndex, paramValue.ToString());
 			return this;
 		}
-		public SQLIteCommand Bind(string paramName, int paramValue)
+		public SQLiteCommand Bind(string paramName, int paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, bool paramValue)
+		public SQLiteCommand Bind(string paramName, bool paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, long paramValue)
+		public SQLiteCommand Bind(string paramName, long paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, double paramValue)
+		public SQLiteCommand Bind(string paramName, double paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName)
+		public SQLiteCommand Bind(string paramName)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex);
 		}
-		public SQLIteCommand Bind(string paramName, byte[] paramValue)
+		public SQLiteCommand Bind(string paramName, byte[] paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, IEnumerable<int> paramValue)
+		public SQLiteCommand Bind(string paramName, IEnumerable<int> paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, IEnumerable<long> paramValue)
+		public SQLiteCommand Bind(string paramName, IEnumerable<long> paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, IEnumerable<double> paramValue)
+		public SQLiteCommand Bind(string paramName, IEnumerable<double> paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, IEnumerable<string> paramValue)
+		public SQLiteCommand Bind(string paramName, IEnumerable<string> paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, string paramValue)
+		public SQLiteCommand Bind(string paramName, string paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, Guid paramValue)
+		public SQLiteCommand Bind(string paramName, Guid paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, DateTime paramValue)
+		public SQLiteCommand Bind(string paramName, DateTime paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, TimeSpan paramValue)
+		public SQLiteCommand Bind(string paramName, TimeSpan paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
 			return Bind(paramIndex, paramValue);
 		}
-		public SQLIteCommand Bind(string paramName, object? paramValue)
+		public SQLiteCommand Bind(string paramName, object? paramValue)
 		{
 			int paramIndex = sqlite3_bind_parameter_index(_stmt, paramName);
 			if (paramIndex <= 0)
 				throw new ArgumentOutOfRangeException(nameof(paramName));
-
+			return Bind(paramIndex, paramValue);
+		}
+		public SQLiteCommand Bind(int paramIndex, object? paramValue)
+		{
 			if (paramValue == null)
 				return Bind(paramIndex);
 			else
