@@ -20,6 +20,11 @@ namespace SQLibre.Core
 			RuntimeInformation.ProcessArchitecture == Architecture.Arm64 &&
 			(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || RuntimeInformation.IsOSPlatform(OSPlatform.Create("IOS")));
 		
+		public static bool IsBusy(int rc)
+			=> rc == SQLITE_LOCKED
+				|| rc == SQLITE_BUSY
+				|| rc == SQLITE_LOCKED_SHAREDCACHE;
+
 		public static int sqlite3_config(int op)
 		{
 			return NativeMethods.sqlite3_config_none(op);

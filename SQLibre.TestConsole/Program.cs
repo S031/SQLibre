@@ -204,26 +204,23 @@ GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 
-/*
 Console.WriteLine("Start reader next result test");
-using (SQLiteReader? r1 = new SQLiteConnection(connectionOptionsScoped)
-	.CreateCommand(sql2 + Environment.NewLine + sql3)
-	.Bind(1, 5)
-	.Bind(2, 5)
-	.ExecuteReader())
+new SQLiteConnection(connectionOptions).Using(ctx =>
 {
-
-	for (; r1?.Read() ?? false;)
+	using (SQLiteReader? r1 = ctx
+	.CreateCommand(sql2 + sql3 + "PRAGMA encoding;" + sql2)
+	.Bind("@limit", 5)
+	.ExecuteReader())
 	{
-		Console.WriteLine($"FirstField = {r1.GetInt32(0)}\tSecondField = {r1.GetInt32(1)}");
+		do
+		{
+			for (; r1?.Read() ?? false;)
+			{
+				Console.WriteLine($"FirstField = {r1.GetInt32(0)}\tSecondField = {r1.GetInt32(1)}");
+			}
+		} while (r1?.NextResult() ?? false);
 	}
-	if (r1?.NextResult() ?? false)
-	{
-		for (; r1?.Read() ?? false;)
-			Console.WriteLine($"Id = {r1.GetInt32(0)} LastName = {r1.GetString(1)} FirstName = {r1.GetString(2)} Phone = {r1.GetString(12)}..");
-	}
-}
+});
 GC.Collect();
-Console.WriteLine($"{nameof(SQLIteCommand)}Reference count: {SQLIteCommand.RefCount}");
-*/
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 Console.ReadLine();

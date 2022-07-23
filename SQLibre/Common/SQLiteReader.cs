@@ -10,12 +10,21 @@ using static SQLibre.Core.Raw;
 using static SQLibre.Core.Raw.NativeMethods;
 using static SQLibre.SQLiteException;
 using System.Text.Json;
+using System.Diagnostics;
 
 namespace SQLibre
 {
+	enum StepInfo
+	{
+		None = 0,
+		HasRows = 1,
+		HasNoRows = 2
+	}
+
 	public sealed class SQLiteReader : IDisposable
 	{
-		private IntPtr _stmt;
+		private int _recordsAffected = -1;
+		private List<IntPtr> _statements;
 		private SQLiteColumnCollection? _collumns;
 		private object?[]? _values;
 		private readonly SQLiteContext _context;
@@ -23,19 +32,25 @@ namespace SQLibre
 		private bool _storeDateTimeAsTicks;
 		private string _dateTimeSqliteDefaultFormat;
 		private System.Globalization.DateTimeStyles _dateTimeStyle;
+		private int _current;
+		private StepInfo _step;
+		private IntPtr _stmt;
 
-		internal SQLiteReader(SQLiteContext context, SQLiteCommand command)
+		internal SQLiteReader(SQLiteCommand command)
 		{
-			_context = context;
-			_storeDateTimeAsTicks = context.Connection.StoreDateTimeAsTicks;
-			_dateTimeSqliteDefaultFormat = context.Connection.DateTimeSqliteDefaultFormat;
-			_dateTimeStyle = context.Connection.DateTimeStyle;
-
+			_context = command.Context;
+			_statements = command.Statements;
+			_storeDateTimeAsTicks = _context.Connection.StoreDateTimeAsTicks;
+			_dateTimeSqliteDefaultFormat = _context.Connection.DateTimeSqliteDefaultFormat;
+			_dateTimeStyle = _context.Connection.DateTimeStyle;
 			_command = command;
-			_stmt = command.Handle;
+			_current = 0;
+			_stmt = _statements[_current];
+			_step = StepInfo.None;
 		}
 
 		private static InvalidOperationException OperationImpossible(string name) => new InvalidOperationException($"Operation {name} is not possible for current reader state");
+		public int RecordsAffected => _recordsAffected;
 
 		public object? this[int index]
 			=> _collumns == null ? throw OperationImpossible("this[int index]") : Values?[index];
@@ -45,25 +60,36 @@ namespace SQLibre
 
 		public bool Read()
 		{
+			if (_step != StepInfo.None)
+			{
+				var stepRersult = _step; 
+				_step = StepInfo.None;
+				return stepRersult == StepInfo.HasRows;
+			}
+
 			var result = sqlite3_step(_stmt);
-			if (result == Raw.SQLITE_ROW)
+			CheckOK(_context.Handle, result);
+			if (result != Raw.SQLITE_DONE)
 			{
 				if (_collumns == null)
-				{
-					int count = sqlite3_column_count(_stmt);
-					_collumns = new(count);
-					_values = null;
-					for (int i = 0; i < count; i++)
-					{
-						_collumns[i] = ReadCol(_stmt, i);
-					}
-				}
+					ReadColumns();
 				return true;
 			}
 			_collumns?.Clear();
 			_collumns = null;
 			_values = null;
 			return false;
+		}
+		
+		private void ReadColumns()
+		{
+			int count = sqlite3_column_count(_stmt);
+			_collumns = new(count);
+			_values = null;
+			for (int i = 0; i < count; i++)
+			{
+				_collumns[i] = ReadCol(_stmt, i);
+			}
 		}
 
 		public object?[] Values
@@ -103,18 +129,74 @@ namespace SQLibre
 				_ => throw new InvalidCastException()
 			};
 
-		//public bool NextResult()
-		//{
-		//	_stmt = sqlite3_next_stmt(_connection.Handle, _stmt);
-		//	if (!_stmt.IsInvalid)
-		//	{
-		//		var result = (Result)sqlite3_step(_stmt);
-		//		return result == Result.Done;
-		//	}
-		//	// get first
-		//	_stmt = sqlite3_next_stmt(_connection.Handle, Sqlite3Statement.From(IntPtr.Zero, _connection.Handle));
-		//	return false;
-		//}
+		public bool NextResult()
+		{
+			int rc;
+			_step = StepInfo.None;
+			Stopwatch _timer = new();
+			for (int i = _current + 1; i < _statements.Count; i++)
+			{
+				try
+				{
+					_timer.Start();
+
+					var stmt = _statements[i];
+					while (IsBusy(rc = sqlite3_step(stmt)))
+					{
+						if (_command.CommandTimeout != 0
+							&& _timer.ElapsedMilliseconds >= _command.CommandTimeout * 1000L)
+						{
+							break;
+						}
+
+						_ = sqlite3_reset(stmt);
+
+						// TODO: Consider having an async path that uses Task.Delay()
+						Thread.Sleep(150);
+					}
+
+					_timer.Stop();
+
+					CheckOK(_context.Handle, rc);
+
+					// It's a SELECT statement
+					if (sqlite3_column_count(stmt) != 0)
+					{
+						_current = i;
+						_stmt = stmt;
+						_step = rc != SQLITE_DONE ? StepInfo.HasRows : StepInfo.HasNoRows;
+						ReadColumns();
+						return true;
+					}
+
+					while (rc != SQLITE_DONE)
+					{
+						rc = sqlite3_step(stmt);
+						CheckOK(_context.Handle, rc);
+					}
+
+					_ = sqlite3_reset(stmt);
+
+					var changes = sqlite3_changes(_context.Handle);
+					if (_recordsAffected == -1)
+					{
+						_recordsAffected = changes;
+					}
+					else
+					{
+						_recordsAffected += changes;
+					}
+				}
+				catch
+				{
+					_ = sqlite3_reset(_statements[i]);
+					Dispose();
+
+					throw;
+				}
+			}
+			return false;
+		}
 
 		public void Dispose()
 		{
