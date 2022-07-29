@@ -39,13 +39,13 @@ Console.WriteLine("End create database test");
 string sql = @"select * from invoices order by RowId desc Limit 2;";
 Console.WriteLine("Connection open test");
 DateTime d = DateTime.Now;
-	new SQLiteConnection(connectionOptionsNoMutex).Using(ctx =>
+new SQLiteConnection(connectionOptionsNoMutex).Using(ctx =>
+{
+	for (int i = 0; i < loop_count; i++)
 	{
-		for (int i = 0; i < loop_count; i++)
-		{
-			ctx.Execute(sql);
-		}
-	});
+		ctx.Execute(sql);
+	}
+});
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 ```
 
