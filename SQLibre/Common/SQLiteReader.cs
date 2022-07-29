@@ -20,7 +20,9 @@ namespace SQLibre
 		HasRows = 1,
 		HasNoRows = 2
 	}
-
+	/// <summary>
+	/// ADO.NET DataReader like Read only && forward only cursor for result data rows iteration
+	/// </summary>
 	public sealed class SQLiteReader : IDisposable
 	{
 		private int _recordsAffected = -1;
@@ -51,6 +53,8 @@ namespace SQLibre
 
 		private static InvalidOperationException OperationImpossible(string name) => new InvalidOperationException($"Operation {name} is not possible for current reader state");
 		public int RecordsAffected => _recordsAffected;
+
+		public unsafe string? Sql => ((Utf8z)sqlite3_sql(_stmt)).ToString();
 
 		public object? this[int index]
 			=> _collumns == null ? throw OperationImpossible("this[int index]") : Values?[index];
