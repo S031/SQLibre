@@ -1,8 +1,9 @@
 ## SQLibre - Simple, lightweigt .NET wrapper for sqlite3.dll. 
 Contains three main classes:
-- [SQLIteConnection](/SQLibre/tree/master/SQLibre/Common)
+- [SQLIteConnection](SQLibre/tree/master/SQLibre/Common)
 - [SQLIteCommand](/SQLibre/tree/master/SQLibre/Common)
 - [SQLiteReader](/SQLibre/tree/master/SQLibre/Common)
+
 with ADO.NET-like functionality
 
 **Connection configuration.**
