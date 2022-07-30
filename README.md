@@ -56,6 +56,7 @@ Sql query based on `json_object`,`json_group_array` SQLite json functions
 ```csharp
 const string _connectionString = @"DatabasePath=DATA\chinook.db";
 string sql = @"
+```sql
 SELECT json_object(
 	'Id', InvoiceId
 	,'InvoiceDate',InvoiceDate
@@ -95,7 +96,9 @@ SELECT json_object(
 FROM invoices i
 where i.InvoiceId = @id
 order by rowid desc
-Limit 1;";
+Limit 1;
+```
+";
 
 JsonElement r = default;
 var db = new SQLiteConnection(connectionOptions);
