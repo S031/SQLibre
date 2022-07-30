@@ -131,6 +131,7 @@ db2.Using(ctx =>
 
 Now supported `string`, `integer` or `double` array. 
 ```csharp
+var db = new SQLiteConnection(connectionOptions);
 db.Using(async ctx =>
 {
 	using (var r1 = ctx.CreateCommand("Select Count(value) from json_each(?) where value = 300.14")
@@ -157,6 +158,7 @@ const string sql7 = @"insert into Test (ID, Name, CreationTime)
 	Values (@ID, @Name, @CreationTime);";
 
 Console.WriteLine("Start bulk insert rows test");
+var db = new SQLiteConnection(connectionOptions);
 db.Using(async ctx =>
 {
 	ctx.Execute(sql5);
