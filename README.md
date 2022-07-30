@@ -53,8 +53,6 @@ Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSe
 **Select json formatted data with query parameters.**
 
 Sql query based on `json_object`,`json_group_array` SQLite json functions
-```csharp
-const string _connectionString = @"DatabasePath=DATA\chinook.db";
 string sql = @"
 ```sql
 SELECT json_object(
@@ -99,6 +97,8 @@ order by rowid desc
 Limit 1;
 ```
 ";
+```csharp
+const string _connectionString = @"DatabasePath=DATA\chinook.db";
 
 JsonElement r = default;
 var db = new SQLiteConnection(connectionOptions);
