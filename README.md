@@ -100,7 +100,7 @@ order by rowid desc
 Limit 1;
 ```
 ```csharp
-`";
+";
 const string _connectionString = @"DatabasePath=DATA\chinook.db";
 
 JsonElement r = default;
