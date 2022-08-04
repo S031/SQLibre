@@ -53,9 +53,11 @@ Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSe
 **Select json formatted data with query parameters.**
 
 Sql query based on `json_object`,`json_group_array` SQLite json functions
+
 ```csharp
-const string _connectionString = @"DatabasePath=DATA\chinook.db";
 string sql = @"
+```
+```sql
 SELECT json_object(
 	'Id', InvoiceId
 	,'InvoiceDate',InvoiceDate
@@ -95,7 +97,11 @@ SELECT json_object(
 FROM invoices i
 where i.InvoiceId = @id
 order by rowid desc
-Limit 1;";
+Limit 1;
+```
+```csharp
+";
+const string _connectionString = @"DatabasePath=DATA\chinook.db";
 
 JsonElement r = default;
 var db = new SQLiteConnection(connectionOptions);
@@ -131,6 +137,7 @@ db2.Using(ctx =>
 
 Now supported `string`, `integer` or `double` array. 
 ```csharp
+var db = new SQLiteConnection(connectionOptions);
 db.Using(async ctx =>
 {
 	using (var r1 = ctx.CreateCommand("Select Count(value) from json_each(?) where value = 300.14")
@@ -157,6 +164,7 @@ const string sql7 = @"insert into Test (ID, Name, CreationTime)
 	Values (@ID, @Name, @CreationTime);";
 
 Console.WriteLine("Start bulk insert rows test");
+var db = new SQLiteConnection(connectionOptions);
 db.Using(async ctx =>
 {
 	ctx.Execute(sql5);
