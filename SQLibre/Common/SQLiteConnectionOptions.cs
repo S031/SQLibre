@@ -155,7 +155,7 @@ namespace SQLibre
 
 		public SQLiteConnectionOptions(string connectionString)
 		{
-			var pairs = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
+			var pairs = new KeyValuePairReader(connectionString);
 			StoreDateTimeAsTicks = false;
 			StoreTimeSpanAsTicks = false;
 			DateTimeStringFormat = DateTimeSqliteDefaultFormat;
@@ -165,38 +165,34 @@ namespace SQLibre
 			string path = string.Empty;
 			string? vfsName = null;
 
-			foreach (var pair in pairs)
+			for (;pairs.Read(out var pair);)
 			{
-				int p = pair.IndexOf('=');
-				if (p == -1)
-					throw new ArgumentException("Connection string has incorrect format");
-				var key = pair.Substring(0, p);
-				var value = pair.Substring(p + 1);
-				switch (key.ToUpper())
+				switch (pair.Key.ToUpper())
 				{
 					case "DATABASEPATH":
-						path = value; ;
+					case "DATA SOURCE":
+						path = pair.Value;
 						break;
 					case "STOREDATETIMEASTICKS":
-						if (bool.TryParse(value, out bool storeDateTimeAsTicks))
+						if (bool.TryParse(pair.Value, out bool storeDateTimeAsTicks))
 							StoreDateTimeAsTicks = storeDateTimeAsTicks;
 						else
 							throw new ArgumentException("Invalid value for StoreDateTimeAsTicks parameter");
 						break;
 					case "STORETIMESPANASTICKS":
-						if (bool.TryParse(value, out bool storeTimeSpanAsTicks))
+						if (bool.TryParse(pair.Value, out bool storeTimeSpanAsTicks))
 							StoreTimeSpanAsTicks = storeTimeSpanAsTicks;
 						else
 							throw new ArgumentException("Invalid value for StoreTimeSpanAsTicks parameter");
 						break;
 					case "DATETIMESTRINGFORMAT":
-						DateTimeStringFormat = value;
+						DateTimeStringFormat = pair.Value;
 						break;
 					case "KEY":
-						key = value;
+						Key = pair.Value;
 						break;
 					case "VFSNAME":
-						vfsName = value;
+						vfsName = pair.Value;
 						break;
 				}
 			}

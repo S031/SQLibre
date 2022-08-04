@@ -3,7 +3,7 @@ using SQLibre.Core;
 using System.Text.Json;
 
 const int loop_count = 10_000;
-const string _connectionString = @"DatabasePath=DATA\chinook.db";
+const string _connectionString = @"DatabasePath=DATA\chinook.db;Provider Name=SQLibre";
 SQLiteConnectionOptions connectionOptions = new SQLiteConnectionOptions(_connectionString);
 SQLiteConnectionOptions connectionOptionsNoMutex = new SQLiteConnectionOptions(_connectionString)
 {
