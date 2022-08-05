@@ -120,6 +120,10 @@ namespace SQLibre
 		/// </summary>
 		public bool UsingAutoCommit { get; set; }
 		/// <summary>
+		/// Command Timeout for prapere && runing command
+		/// </summary>
+		public int CommandTimeout { get; set; }
+		/// <summary>
 		/// Create new <see cref="SQLiteConnectionOptions"/> object
 		/// </summary>
 		/// <param name="databasePath"><see cref="DatabasePath"/></param>
@@ -179,6 +183,9 @@ namespace SQLibre
 						else
 							throw new ArgumentException("Invalid value for StoreDateTimeAsTicks parameter");
 						break;
+					case "DATETIMEFORMAT":
+						StoreDateTimeAsTicks = "Ticks".Equals(pair.Value, StringComparison.OrdinalIgnoreCase);
+						break;
 					case "STORETIMESPANASTICKS":
 						if (bool.TryParse(pair.Value, out bool storeTimeSpanAsTicks))
 							StoreTimeSpanAsTicks = storeTimeSpanAsTicks;
@@ -189,10 +196,24 @@ namespace SQLibre
 						DateTimeStringFormat = pair.Value;
 						break;
 					case "KEY":
+					case "PASSWORD":
 						Key = pair.Value;
 						break;
 					case "VFSNAME":
 						vfsName = pair.Value;
+						break;
+					case "COMMAND TIMEOUT":
+						CommandTimeout = int.TryParse(pair.Value, out int i) ? i : 0; ;
+						break;
+					case "READ ONLY":
+						OpenFlags = (OpenFlags & ~SQLiteOpenFlags.SQLITE_OPEN_READWRITE) | SQLiteOpenFlags.SQLITE_OPEN_READONLY;
+						break;
+					case "JOURNAL MODE":
+					case "ENCODING":
+					case "UTF16ENCODING":
+					case "CACHE SIZE":
+					case "PAGE SIZE":
+						//add this
 						break;
 				}
 			}

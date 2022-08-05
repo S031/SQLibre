@@ -5,6 +5,14 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<PackageId>$(AssemblyName).Core</PackageId>
+		<Authors>$(AssemblyName)</Authors>
+		<Company></Company>
+		<Description>An minimalistic, thread safe sqlite3 wrapper with simple effective api for base manipulation with sqlite3 data</Description>
+		<PackageProjectUrl>https://github.com/S031/SQLibre</PackageProjectUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryUrl>https://github.com/S031/SQLibre.git</RepositoryUrl>
+		<PackageTags>sqlite,sqlite3,c#,.net,json</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -16,5 +24,12 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<TargetPath>sqlite3.dll</TargetPath>
 		</ContentWithTargetPath>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="..\README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 </Project>

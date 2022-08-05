@@ -26,10 +26,11 @@ namespace SQLibre
 		private SQLiteContext _context;
 		private List<IntPtr> _statements = new(1);
 
-		internal SQLiteCommand(SQLiteContext context, ReadOnlySpan<byte> statement)
+		internal SQLiteCommand(SQLiteContext context, ReadOnlySpan<byte> statement, int commandTimeout = 0)
 		{
 			_context = context;
-			PrepareStatements(statement, 0);
+			CommandTimeout = commandTimeout;
+			PrepareStatements(statement);
 			RefCounter.Add();
 		}
 
@@ -68,7 +69,7 @@ namespace SQLibre
 			}
 		}
 
-		private void PrepareStatements(ReadOnlySpan<byte> sql, int commandTimeout)
+		private void PrepareStatements(ReadOnlySpan<byte> sql)
 		{
 			Stopwatch timer = new();
 			DisposeStatements();
@@ -77,7 +78,8 @@ namespace SQLibre
 			int rc;
 			IntPtr stmt;
 			var start = 0;
-			
+			int commandTimeout = CommandTimeout;
+
 			do
 			{
 				timer.Start();

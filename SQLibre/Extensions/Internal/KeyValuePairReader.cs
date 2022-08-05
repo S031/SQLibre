@@ -13,7 +13,7 @@ namespace SQLibre
 		private ReadOnlySpan<char> _sep2;
 		int _offset;
 
-		public KeyValuePairReader(string text, string itemSeparator=";", string keyValueSeparator = "=")
+		public KeyValuePairReader(string text, string itemSeparator = ";", string keyValueSeparator = "=")
 		{
 			_buffer = text.AsSpan();
 			_sep1 = itemSeparator.AsSpan();
@@ -38,33 +38,10 @@ namespace SQLibre
 				pos = token.IndexOf(_sep2);
 				if (pos == -1)
 					throw new InvalidOperationException($"Wrong string format");
-				pair = new(token[0..(pos)].ToString(), token[(pos+_sep2.Length)..].ToString());
+				pair = new(token[0..pos].ToString(c => c != ' '), token[(pos + _sep2.Length)..].ToString(c => c != ' '));
 			}
 			_offset += token.Length + _sep1.Length;
 			return true;
-		}
-
-		public static ReadOnlySpan<char> GetToken(ReadOnlySpan<char> source, ReadOnlySpan<char> separator, int offset)
-		{
-			int start = offset;
-			int len = separator.Length;
-			int totalLen = source.Length;
-
-			if (start >= totalLen)
-				return ReadOnlySpan<char>.Empty;
-
-			int pos = source[start..].IndexOf(separator);
-			if (pos < 0) pos = totalLen;
-
-			int finish = source[start..].IndexOf(separator);
-			if (finish > 0)
-			{
-				return source.Slice(start, finish);
-			}
-			else
-			{
-				return source[start..];
-			}
 		}
 	}
 }
