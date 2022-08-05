@@ -12,13 +12,23 @@ namespace SQLibre
 		private ReadOnlySpan<char> _sep1;
 		private ReadOnlySpan<char> _sep2;
 		int _offset;
+		private readonly Func<char, bool> _keyCharFilter;
+		private readonly Func<char, bool> _valueCharFilter;
+		private static readonly Func<char, bool> _defaultCharFilter = c => true;
 
-		public KeyValuePairReader(string text, string itemSeparator = ";", string keyValueSeparator = "=")
+
+		public KeyValuePairReader(string text,
+			string itemSeparator = ";",
+			string keyValueSeparator = "=",
+			Func<char, bool>? keyCharFilter = null,
+			Func<char, bool>? valueCharFilter = null)
 		{
 			_buffer = text.AsSpan();
 			_sep1 = itemSeparator.AsSpan();
 			_sep2 = keyValueSeparator.AsSpan();
 			_offset = 0;
+			_keyCharFilter = keyCharFilter ?? _defaultCharFilter;
+			_valueCharFilter = valueCharFilter ?? _defaultCharFilter;
 		}
 
 		public bool Read(out KeyValuePair<string, string> pair)
@@ -38,7 +48,7 @@ namespace SQLibre
 				pos = token.IndexOf(_sep2);
 				if (pos == -1)
 					throw new InvalidOperationException($"Wrong string format");
-				pair = new(token[0..pos].ToString(c => c != ' '), token[(pos + _sep2.Length)..].ToString(c => c != ' '));
+				pair = new(token[0..pos].ToString(_keyCharFilter), token[(pos + _sep2.Length)..].ToString(_valueCharFilter));
 			}
 			_offset += token.Length + _sep1.Length;
 			return true;

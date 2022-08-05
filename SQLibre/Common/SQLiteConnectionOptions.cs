@@ -159,7 +159,7 @@ namespace SQLibre
 
 		public SQLiteConnectionOptions(string connectionString)
 		{
-			var pairs = new KeyValuePairReader(connectionString);
+			var pairs = new KeyValuePairReader(connectionString, ";", "=", c => c != ' ', c => c != ' ');
 			StoreDateTimeAsTicks = false;
 			StoreTimeSpanAsTicks = false;
 			DateTimeStringFormat = DateTimeSqliteDefaultFormat;
@@ -169,12 +169,13 @@ namespace SQLibre
 			string path = string.Empty;
 			string? vfsName = null;
 
+			/// in <see cref="KeyValuePairReader.Read" method apce was removed from keys />
 			for (;pairs.Read(out var pair);)
 			{
 				switch (pair.Key.ToUpper())
 				{
 					case "DATABASEPATH":
-					case "DATA SOURCE":
+					case "DATASOURCE":
 						path = pair.Value;
 						break;
 					case "STOREDATETIMEASTICKS":
@@ -202,17 +203,17 @@ namespace SQLibre
 					case "VFSNAME":
 						vfsName = pair.Value;
 						break;
-					case "COMMAND TIMEOUT":
+					case "COMMANDTIMEOUT":
 						CommandTimeout = int.TryParse(pair.Value, out int i) ? i : 0; ;
 						break;
-					case "READ ONLY":
+					case "READONLY":
 						OpenFlags = (OpenFlags & ~SQLiteOpenFlags.SQLITE_OPEN_READWRITE) | SQLiteOpenFlags.SQLITE_OPEN_READONLY;
 						break;
-					case "JOURNAL MODE":
+					case "JOURNALMODE":
 					case "ENCODING":
 					case "UTF16ENCODING":
-					case "CACHE SIZE":
-					case "PAGE SIZE":
+					case "CACHESIZE":
+					case "PAGESIZE":
 						//add this
 						break;
 				}
