@@ -62,7 +62,8 @@ namespace SQLibre
 		public SQLiteConnection(SQLiteConnectionOptions connectionOptions)
 		{
 			_connectionOptions = connectionOptions;
-			_handle = SQLiteConnectionPool.GetConnection(_connectionOptions.OpenOptions, 100000);
+			_handle = SQLiteConnectionPool.GetConnection(_connectionOptions.OpenOptions, 100000,
+				db => ExecuteInternal(db, (Utf8z)$"PRAGMA journal_mode={connectionOptions.JournalMode}"));
 			State = ConnectionState.Open;
 		}
 
@@ -88,7 +89,7 @@ namespace SQLibre
 		{
 			if (_inTransaction == 0)
 				throw new InvalidOperationException("transaction does not exist");
-			Execute("commit transaction;");
+			Execute("rollback transaction;");
 		}
 
 		public int Execute(string commandText)

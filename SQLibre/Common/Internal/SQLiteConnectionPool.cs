@@ -35,7 +35,7 @@ namespace SQLibre
 		/// <param name="options"><see cref="SQLiteConnectionOptions"/>SQLite connection configuration parameters</param>
 		/// <param name="millisecondsTimeout">Timeoput for waiting in milliseconds</param>
 		/// <returns></returns>
-		public static DbHandle GetConnection(DbOpenOptions o, int millisecondsTimeout = Timeout.Infinite)
+		public static DbHandle GetConnection(DbOpenOptions o, int millisecondsTimeout = Timeout.Infinite, Action<IntPtr>? OpenCallBack = null)
 		{
 			Monitor.TryEnter(_lock, TimeSpan.FromMilliseconds(millisecondsTimeout));
 			try
@@ -45,6 +45,8 @@ namespace SQLibre
 				if (index == -1)
 				{
 					db = DbHandle.Open(o.DatabasePath, o.OpenFlag, o.VfsName);
+					if (OpenCallBack != null)
+						OpenCallBack(db);
 					_pool.Add(db);
 					_options.Add(o);
 				}

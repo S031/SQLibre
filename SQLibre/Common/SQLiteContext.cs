@@ -142,5 +142,7 @@ namespace SQLibre
 				}
 			}
 		}
+		public long LastInsertRowId()
+			=> sqlite3_last_insert_rowid(Handle);
 	}
 }

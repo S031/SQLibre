@@ -1,7 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
+		<RuntimeIdentifier1>win-x64</RuntimeIdentifier1>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -13,19 +14,21 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/S031/SQLibre.git</RepositoryUrl>
 		<PackageTags>sqlite,sqlite3,c#,.net,json</PackageTags>
+		<PlatformTarget>AnyCPU</PlatformTarget>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<Folder Include="lib\win-x64\" />
+		<Folder Include="lib\win-x86\" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ContentWithTargetPath Include="lib\win-x64\sqlite3.dll">
+		<ContentWithTargetPath Include="lib\$(RuntimeIdentifier1)\sqlite3.dll">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<TargetPath>sqlite3.dll</TargetPath>
 		</ContentWithTargetPath>
 	</ItemGroup>
-
+	
 	<ItemGroup>
 	  <None Include="..\README.md">
 	    <Pack>True</Pack>

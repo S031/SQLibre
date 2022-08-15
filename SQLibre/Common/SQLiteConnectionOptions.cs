@@ -73,7 +73,7 @@ namespace SQLibre
 		/// <summary>
 		/// Default datetiem format for them string representation
 		/// </summary>
-		const string DateTimeSqliteDefaultFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff";
+		const string DateTimeSqliteDefaultFormat = "yyyy'-'MM'-'dd' 'HH':'mm':'ss'.'fff";
 
 		private DbOpenOptions _openOptions;
 		/// <summary>
@@ -123,6 +123,10 @@ namespace SQLibre
 		/// Command Timeout for prapere && runing command
 		/// </summary>
 		public int CommandTimeout { get; set; }
+		/// <summary>
+		/// journal mode for databases associated with the current database connection.
+		/// </summary>
+		public SQLiteJournalMode JournalMode { get; set; } = SQLiteJournalMode.WAL;
 		/// <summary>
 		/// Create new <see cref="SQLiteConnectionOptions"/> object
 		/// </summary>
@@ -210,6 +214,11 @@ namespace SQLibre
 						OpenFlags = (OpenFlags & ~SQLiteOpenFlags.SQLITE_OPEN_READWRITE) | SQLiteOpenFlags.SQLITE_OPEN_READONLY;
 						break;
 					case "JOURNALMODE":
+						if (Enum.TryParse<SQLiteJournalMode>(pair.Value, out var mode))
+							JournalMode = mode;
+						else
+							throw new ArgumentException("Invalid value for JournalMode parameter");
+						break;
 					case "ENCODING":
 					case "UTF16ENCODING":
 					case "CACHESIZE":
