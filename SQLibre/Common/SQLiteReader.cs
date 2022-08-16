@@ -138,7 +138,7 @@ namespace SQLibre
 			int rc;
 			_step = StepInfo.None;
 			Stopwatch _timer = new();
-			for (int i = _current + 1; i < _statements.Count; i++)
+			for (int i = _current; i < _statements.Count; i++)
 			{
 				try
 				{

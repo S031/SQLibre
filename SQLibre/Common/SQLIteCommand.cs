@@ -43,6 +43,7 @@ namespace SQLibre
 		public SQLiteReader ExecuteReader()
 		{
 			var r = new SQLiteReader(this);
+			r.NextResult();
 			return r;
 		}
 
