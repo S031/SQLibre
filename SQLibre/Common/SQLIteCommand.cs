@@ -56,7 +56,6 @@ namespace SQLibre
 		public unsafe int Execute()
 		{
 			using var r = ExecuteReader();
-			r.Read();
 			return r.RecordsAffected;
 		}
 

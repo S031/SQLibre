@@ -73,7 +73,7 @@ namespace SQLibre
 		/// <summary>
 		/// Default datetiem format for them string representation
 		/// </summary>
-		const string DateTimeSqliteDefaultFormat = "yyyy'-'MM'-'dd' 'HH':'mm':'ss'.'fff";
+		const string DateTimeSqliteDefaultFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff";
 
 		private DbOpenOptions _openOptions;
 		/// <summary>

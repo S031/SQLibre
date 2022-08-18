@@ -46,8 +46,8 @@ namespace SQLibre
 			_dateTimeSqliteDefaultFormat = _context.Connection.DateTimeSqliteDefaultFormat;
 			_dateTimeStyle = _context.Connection.DateTimeStyle;
 			_command = command;
-			_current = 0;
-			_stmt = _statements[_current];
+			_current = -1;
+			//_stmt = _statements[_current];
 			_step = StepInfo.None;
 		}
 
@@ -138,7 +138,7 @@ namespace SQLibre
 			int rc;
 			_step = StepInfo.None;
 			Stopwatch _timer = new();
-			for (int i = _current; i < _statements.Count; i++)
+			for (int i = _current + 1; i < _statements.Count; i++)
 			{
 				try
 				{
@@ -183,13 +183,9 @@ namespace SQLibre
 
 					var changes = sqlite3_changes(_context.Handle);
 					if (_recordsAffected == -1)
-					{
 						_recordsAffected = changes;
-					}
 					else
-					{
 						_recordsAffected += changes;
-					}
 				}
 				catch
 				{

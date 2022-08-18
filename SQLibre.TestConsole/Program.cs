@@ -185,7 +185,7 @@ db.Using(async ctx =>
 				.ExecuteAsync(CancellationToken.None);
 	ctx.Execute("commit transaction;");
 	var total = (DateTime.Now - d).TotalSeconds;
-	count = Convert.ToInt32(ctx.ExecuteScalar<long>("Select count(*) from Test"));
+	count = Convert.ToInt32(ctx.CreateCommand("Select count(*) from Test").ExecuteScalar<long>());
 	Console.WriteLine($"Finished {count} calls with {total} ms");
 	Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
