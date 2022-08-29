@@ -320,7 +320,7 @@ namespace SQLibre
 			{
 				int paramIndex = sqlite3_bind_parameter_index(stmt, paramName);
 				if (paramIndex > 0)
-					BindValue(stmt, paramIndex, paramValue);
+					CheckOK(BindValue(stmt, paramIndex, paramValue));
 			}
 			return this;
 		}

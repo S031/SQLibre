@@ -140,11 +140,11 @@ namespace SQLibre
 			Stopwatch _timer = new();
 			for (int i = _current + 1; i < _statements.Count; i++)
 			{
+				var stmt = _statements[i];
 				try
 				{
 					_timer.Start();
 
-					var stmt = _statements[i];
 					while (IsBusy(rc = sqlite3_step(stmt)))
 					{
 						if (_command.CommandTimeout != 0
@@ -189,7 +189,7 @@ namespace SQLibre
 				}
 				catch
 				{
-					_ = sqlite3_reset(_statements[i]);
+					_ = sqlite3_reset(stmt);
 					Dispose();
 
 					throw;
