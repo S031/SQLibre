@@ -62,6 +62,9 @@ namespace SQLibre
 		public object? this[string index]
 			=> _collumns == null ? throw OperationImpossible("this[string index]") : Values?[_collumns.ColumnIndex(index)];
 
+		public int FieldCount
+			=> _collumns == null ? throw OperationImpossible("FieldCount") : _collumns.Count;
+
 		public bool Read()
 		{
 			if (_step != StepInfo.None)
