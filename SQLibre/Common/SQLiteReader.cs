@@ -80,6 +80,7 @@ namespace SQLibre
 			{
 				if (_collumns == null)
 					ReadColumns();
+				_values = null;
 				return true;
 			}
 			_collumns?.Clear();
