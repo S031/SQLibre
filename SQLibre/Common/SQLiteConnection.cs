@@ -33,6 +33,7 @@ namespace SQLibre
 	/// </summary>
 	public sealed class SQLiteConnection : IDisposable
 	{
+		internal const string MainDatabaseName = "main";
 
 		private IntPtr _handle;
 		private int _inTransaction;

@@ -145,6 +145,8 @@ namespace SQLibre.Core
             {
                 fixed (byte* q = _data)
                 {
+                    if (_data[^1] == 0)
+                        return Encoding.UTF8.GetString(q, _data.Length - 1);
                     return Encoding.UTF8.GetString(q, _data.Length);
                 }
             }

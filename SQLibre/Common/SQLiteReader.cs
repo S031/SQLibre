@@ -11,6 +11,8 @@ using static SQLibre.Core.Raw.NativeMethods;
 using static SQLibre.SQLiteException;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Data.Common;
+using System.Reflection.Metadata;
 
 namespace SQLibre
 {
@@ -213,6 +215,31 @@ namespace SQLibre
 			}
 			GC.SuppressFinalize(this);
 		}
+
+		public unsafe Stream GetStream(int ordinal)
+		{
+			if (ordinal < 0 || ordinal >= FieldCount)
+				throw new ArgumentOutOfRangeException(nameof(ordinal), ordinal, message: null);
+			else if (_collumns == null)
+				throw OperationImpossible(nameof(GetValue));
+			
+			int rowIdIndex = _collumns?.ColumnIndex("ROWID") ?? -1;
+			if (rowIdIndex == -1)
+				throw new InvalidOperationException($"{nameof(GetStream)} method required a RowId column in {nameof(SQLiteReader)}");
+
+			var handle = _context.Connection.Handle;
+			var blobDatabaseName = (Utf8z)sqlite3_column_database_name(_stmt, ordinal);
+			var blobTableName = (Utf8z)sqlite3_column_table_name(_stmt, ordinal);
+			var blobColumnName = (Utf8z)sqlite3_column_origin_name(_stmt, ordinal);
+			long rowid = GetInt64(rowIdIndex);
+
+			return new SQLiteBlob(_context.Connection, blobDatabaseName, blobTableName, blobColumnName, rowid, readOnly: true);
+		}
+
+		public TextReader GetTextReader(int ordinal)
+			=> IsNull(ordinal)
+				? new StringReader(string.Empty)
+				: new StreamReader(GetStream(ordinal), Encoding.UTF8);
 
 		#region get_values
 		public object? GetValue(int index)

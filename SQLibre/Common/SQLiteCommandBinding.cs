@@ -17,6 +17,14 @@ namespace SQLibre
 	{
 		#region binding
 		#region internal
+		/// <summary>
+		/// using for bind empty blob long size and then using blob_write method for load data
+		/// </summary>
+		/// <param name="stmt">sqlite3 statement</param>
+		/// <param name="paramIndex">parameter index</param>
+		/// <param name="blobSize">size of new blob</param>
+		/// <returns></returns>
+		private static int BindZeroBlob(IntPtr stmt, int paramIndex, int blobSize) => sqlite3_bind_zeroblob(stmt, paramIndex, blobSize);
 		private static int BindValue(IntPtr stmt, int paramIndex, int paramValue) => sqlite3_bind_int(stmt, paramIndex, paramValue);
 		private static int BindValue(IntPtr stmt, int paramIndex, bool paramValue) => sqlite3_bind_int(stmt, paramIndex, paramValue ? 1 : 0);
 		private static int BindValue(IntPtr stmt, int paramIndex, long paramValue) => sqlite3_bind_int64(stmt, paramIndex, paramValue);
@@ -37,6 +45,15 @@ namespace SQLibre
 			: sqlite3_bind_text(stmt, paramIndex, paramValue.ToString());
 		#endregion internal
 		#region ByIndex
+		public SQLiteCommand BindZeroBlob(int paramIndex, int blobSize)
+		{
+			foreach (var stmt in _statements)
+			{
+				var rc = BindZeroBlob(stmt, paramIndex, blobSize);
+				CheckOK(rc);
+			}
+			return this;
+		}
 		public SQLiteCommand Bind(int paramIndex, int paramValue)
 		{
 			foreach (var stmt in _statements)
@@ -174,6 +191,16 @@ namespace SQLibre
 		}
 		#endregion ByIndex
 		#region ByName
+		public SQLiteCommand BindZeroBlob(string paramName, int blobSize)
+		{
+			foreach (var stmt in _statements)
+			{
+				int paramIndex = sqlite3_bind_parameter_index(stmt, paramName);
+				if (paramIndex > 0)
+					BindZeroBlob(stmt, paramIndex, blobSize);
+			}
+			return this;
+		}
 		public SQLiteCommand Bind(string paramName, int paramValue)
 		{
 			foreach (var stmt in _statements)

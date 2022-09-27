@@ -1,5 +1,7 @@
 ﻿using SQLibre;
 using SQLibre.Core;
+using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 
 const int loop_count = 10_000;
@@ -82,7 +84,7 @@ order by rowid desc
 Limit 1;";
 
 string sql2 = @"select * from playlist_track Limit @limit;";
-string sql3 = @"SELECT * FROM employees Order By rowid desc limit @limit;";
+string sql3 = @"SELECT *, rowid as RowId FROM employees Order By rowid desc limit @limit;";
 
 JsonElement r = default;
 var db = new SQLiteConnection(connectionOptions);
@@ -151,7 +153,15 @@ db.Using(ctx =>
 	using (SQLiteReader? r1 = ctx.ExecuteReader(sql3, "@limit", 5))
 	{
 		for (; r1?.Read() ?? false;)
-			Console.WriteLine($"Id = {r1.GetInt32(0)} LastName = {r1.GetString(1)} FirstName = {r1.GetString(2)} Phone = {r1.GetString(12)}..");
+		{
+			using (var source = r1.GetStream(1))
+			using (var taget = new MemoryStream(Convert.ToInt32(source.Length)))
+			{
+				source.CopyTo(taget);
+				var lastName = Encoding.Default.GetString(taget.ToArray());
+				Console.WriteLine($"Id = {r1.GetInt32(0)} LastName = {lastName} FirstName = {r1.GetString(2)} Phone = {r1.GetString(12)}..");
+			}
+		}
 	}
 });
 GC.Collect();
