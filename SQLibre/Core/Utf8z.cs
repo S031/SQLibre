@@ -155,26 +155,26 @@ namespace SQLibre.Core
         public static int Compare(Utf8z strA, Utf8z strB)
         {
             int length = Math.Min(strA.Length, strB.Length);
+            return Raw.NativeMethods.sqlite3_strnicmp(strA, strB, length); 
+            //unsafe
+            //{
+            //    fixed (byte* ap = strA._data)
+            //    fixed (byte* bp = strB._data)
+            //    {
+            //        byte* a = ap;
+            //        byte* b = bp;
 
-            unsafe
-            {
-                fixed (byte* ap = strA._data)
-                fixed (byte* bp = strB._data)
-                {
-                    byte* a = ap;
-                    byte* b = bp;
-
-                    while (length > 0)
-                    {
-                        if (*a != *b)
-                            return *a - *b;
-                        a += 1;
-                        b += 1;
-                        length -= 1;
-                    }
-                    return strA.Length - strB.Length;
-                }
-            }
+            //        while (length > 0)
+            //        {
+            //            if (*a != *b)
+            //                return *a - *b;
+            //            a += 1;
+            //            b += 1;
+            //            length -= 1;
+            //        }
+            //        return strA.Length - strB.Length;
+            //    }
+            //}
         }
 
         public int CompareTo(Utf8z other) => Compare(this, other);

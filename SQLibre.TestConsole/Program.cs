@@ -15,9 +15,10 @@ SQLiteConnectionOptions connectionOptionsNoMutex = new SQLiteConnectionOptions(_
 
 Console.WriteLine("Start create database test");
 const string test_db = @"DatabasePath=DATA\test.db;LifeTime=Scoped";
+const string memory_db = @"DatabasePath=:memory:";
 SQLiteConnectionOptions testOptions = new SQLiteConnectionOptions(test_db);
 
-SQLiteConnection.DropDb(new SQLiteConnectionOptions(test_db));
+SQLiteConnection.DropDb(new SQLiteConnectionOptions(test_db) { Pooling = false });
 SQLiteConnection.CreateDb(testOptions, SQLiteEncoding.Utf16);
 var c = new SQLiteConnection(testOptions);
 c.Using(ctx=>
@@ -38,6 +39,22 @@ DateTime d = DateTime.Now;
 			ctx.Execute(sql);
 		}
 	});
+Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
+GC.Collect();
+
+
+Console.WriteLine("Memory connection open test");
+d = DateTime.Now;
+for (int i = 0; i < loop_count; i++)
+{
+	using (var testDb = new SQLiteConnection(memory_db))
+	{
+		testDb.Using(ctx =>
+		{
+			ctx.Execute("SELECT COUNT(*) FROM sqlite_master;");
+		});
+	}
+}
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
 

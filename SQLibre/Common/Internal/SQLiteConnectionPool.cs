@@ -21,6 +21,7 @@ namespace SQLibre
 
 		private static readonly List<IntPtr> _pool = new();
 		private static readonly List<DbOpenOptions> _options = new();
+		private static readonly List<IntPtr> _non_pooled = new();
 
 		static SQLiteConnectionPool() =>
 			AssemblyLoadContext.Default.Unloading += ctx =>
@@ -40,18 +41,26 @@ namespace SQLibre
 			Monitor.TryEnter(_lock, TimeSpan.FromMilliseconds(millisecondsTimeout));
 			try
 			{
-				int index = _options.IndexOf(o);
 				DbHandle db;
-				if (index == -1)
+				int index;
+				if (o.Pooling && (index = _options.IndexOf(o)) > -1)
 				{
-					db = DbHandle.Open(o.DatabasePath, o.OpenFlag, o.VfsName);
-					if (OpenCallBack != null)
-						OpenCallBack(db);
+					return _pool[index];
+				}
+
+				db = DbHandle.Open(o.DatabasePath, o.OpenFlag, o.VfsName);
+				if (OpenCallBack != null)
+					OpenCallBack(db);
+
+				if (o.Pooling)
+				{
 					_pool.Add(db);
 					_options.Add(o);
 				}
 				else
-					db = _pool[index];
+				{
+					_non_pooled.Add(db);
+				}
 				return db;
 			}
 			catch 
@@ -63,13 +72,26 @@ namespace SQLibre
 				Monitor.Exit(_lock);
 			}
 		}
-
-		public static void Remove(DbHandle handle, int millisecondsTimeout = Timeout.Infinite)
+		/// <summary>
+		/// Remove ptr from pool
+		/// </summary>
+		/// <param name="handle">sqlite3 db</param>
+		/// <param name="fullRemove">if true close pooled && non pooled else non pooled only</param>
+		/// <param name="millisecondsTimeout">wait timeout if db is busy</param>
+		public static void Remove(DbHandle handle, bool fullRemove = false, int millisecondsTimeout = Timeout.Infinite)
 		{
 			Monitor.TryEnter(_lock, TimeSpan.FromMilliseconds(millisecondsTimeout));
 			try
 			{
-				RemoveInternal(handle);
+				int index = _non_pooled.IndexOf(handle);
+				if (index > -1)
+					RemoveInternal(index, false);
+				else if (fullRemove)
+				{
+					index = _pool.IndexOf(handle);
+					if (index > -1)
+						RemoveInternal(index, true);
+				}
 			}
 			catch
 			{
@@ -87,7 +109,9 @@ namespace SQLibre
 			try
 			{
 				for (; _pool.Count > 0;)
-					RemoveInternal(_pool[0]);
+					RemoveInternal(0, true);
+				for (; _non_pooled.Count > 0;)
+					RemoveInternal(0, false);
 			}
 			catch
 			{
@@ -99,15 +123,16 @@ namespace SQLibre
 			}
 		}
 
-		private static void RemoveInternal(DbHandle handle)
+		private static void RemoveInternal(
+			int index, 
+			bool pooled)
 		{
-			int index = _pool.IndexOf(handle);
-			if (index == -1)
-				throw new ArgumentOutOfRangeException(nameof(handle));
-			var db = (DbHandle)_pool[index];
-			db.Close();
-			_pool.RemoveAt(index);
-			_options.RemoveAt(index);
+			List<IntPtr> pool = pooled ? _pool : _non_pooled;
+			DbHandle handle = pool[index];
+			handle.Close();
+			pool.RemoveAt(index);
+			if (pooled)
+				_options.RemoveAt(index);
 		}
 	}
 }

@@ -16,7 +16,7 @@ namespace SQLibre.Core
 		DbHandle(IntPtr handle) => Handle = handle;
 		public IntPtr Handle { get; }
 		public bool IsEmpty() => Handle == IntPtr.Zero;
-		public unsafe string? FileName(string dbName = "main") =>  (Utf8z)Raw.NativeMethods.sqlite3_db_filename(Handle, (Utf8z)dbName);
+		public unsafe string? FileName(string dbName = DbOpenOptions.MainDatabaseName) =>  (Utf8z)Raw.NativeMethods.sqlite3_db_filename(Handle, (Utf8z)dbName);
 		public unsafe static DbHandle Open(string fileName, int flag, string? vfsName = null)
 		{
 			IntPtr p;

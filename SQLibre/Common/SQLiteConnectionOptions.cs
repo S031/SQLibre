@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -76,6 +77,7 @@ namespace SQLibre
 		const string DateTimeSqliteDefaultFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff";
 
 		private DbOpenOptions _openOptions;
+
 		/// <summary>
 		/// Structure for usage as storage key for <see cref="SQLiteConnectionPool"/>class
 		/// </summary>
@@ -128,6 +130,11 @@ namespace SQLibre
 		/// </summary>
 		public SQLiteJournalMode JournalMode { get; set; } = SQLiteJournalMode.WAL;
 		/// <summary>
+		///     Gets or sets a value indicating whether the connection will be pooled.
+		/// </summary>
+		/// <value>A value indicating whether the connection will be pooled.</value>
+		public bool Pooling { get; set; }
+		/// <summary>
 		/// Create new <see cref="SQLiteConnectionOptions"/> object
 		/// </summary>
 		/// <param name="databasePath"><see cref="DatabasePath"/></param>
@@ -149,7 +156,8 @@ namespace SQLibre
 			object? key = null,
 			string? vfsName = null,
 			string dateTimeStringFormat = DateTimeSqliteDefaultFormat,
-			bool storeTimeSpanAsTicks = true)
+			bool storeTimeSpanAsTicks = true,
+			bool pooling = true)
 		{
 			if (key != null && !(key is byte[] || key is string))
 				throw new ArgumentException("Encryption keys must be strings or byte arrays", nameof(key));
@@ -158,8 +166,17 @@ namespace SQLibre
 			DateTimeStringFormat = dateTimeStringFormat;
 			DateTimeStyle = "o".Equals(DateTimeStringFormat, StringComparison.OrdinalIgnoreCase) || "r".Equals(DateTimeStringFormat, StringComparison.OrdinalIgnoreCase) ? DateTimeStyles.RoundtripKind : DateTimeStyles.None; ;
 			Key = key;
-			_openOptions = new(databasePath, (int)openFlags, vfsName);
+			Pooling = true;
+
+			bool canBePooled = !(!Pooling
+				|| databasePath.Length == 0
+				|| (OpenFlags & SQLiteOpenFlags.SQLITE_OPEN_MEMORY) == SQLiteOpenFlags.SQLITE_OPEN_MEMORY
+				|| databasePath.Equals(":memory:", StringComparison.OrdinalIgnoreCase));
+
+			_openOptions = new(databasePath, (int)openFlags, vfsName, canBePooled);
 		}
+		private static void InvalidConfigValueRaise(string key)
+			=> throw new ArgumentException($"Invalid value for {key} parameter");
 
 		public SQLiteConnectionOptions(string connectionString)
 		{
@@ -169,12 +186,13 @@ namespace SQLibre
 			DateTimeStringFormat = DateTimeSqliteDefaultFormat;
 			Key = null;
 			OpenFlags = DefaultOpenFlags;
-			
+			Pooling = true;
+
 			string path = string.Empty;
 			string? vfsName = null;
 
 			/// in <see cref="KeyValuePairReader.Read" method apce was removed from keys />
-			for (;pairs.Read(out var pair);)
+			for (; pairs.Read(out var pair);)
 			{
 				switch (pair.Key.ToUpper())
 				{
@@ -186,7 +204,7 @@ namespace SQLibre
 						if (bool.TryParse(pair.Value, out bool storeDateTimeAsTicks))
 							StoreDateTimeAsTicks = storeDateTimeAsTicks;
 						else
-							throw new ArgumentException("Invalid value for StoreDateTimeAsTicks parameter");
+							InvalidConfigValueRaise(pair.Key);
 						break;
 					case "DATETIMEFORMAT":
 						StoreDateTimeAsTicks = "Ticks".Equals(pair.Value, StringComparison.OrdinalIgnoreCase);
@@ -195,7 +213,7 @@ namespace SQLibre
 						if (bool.TryParse(pair.Value, out bool storeTimeSpanAsTicks))
 							StoreTimeSpanAsTicks = storeTimeSpanAsTicks;
 						else
-							throw new ArgumentException("Invalid value for StoreTimeSpanAsTicks parameter");
+							InvalidConfigValueRaise(pair.Key);
 						break;
 					case "DATETIMESTRINGFORMAT":
 						DateTimeStringFormat = pair.Value;
@@ -217,7 +235,13 @@ namespace SQLibre
 						if (Enum.TryParse<SQLiteJournalMode>(pair.Value, out var mode))
 							JournalMode = mode;
 						else
-							throw new ArgumentException("Invalid value for JournalMode parameter");
+							InvalidConfigValueRaise(pair.Key);
+						break;
+					case "POOLING":
+						if (bool.TryParse(pair.Value, out bool pooling))
+							Pooling = pooling;
+						else
+							InvalidConfigValueRaise(pair.Key);
 						break;
 					case "ENCODING":
 					case "UTF16ENCODING":
@@ -227,11 +251,17 @@ namespace SQLibre
 						break;
 				}
 			}
-			DateTimeStyle = "o".Equals(DateTimeStringFormat, StringComparison.OrdinalIgnoreCase) 
-				|| "r".Equals(DateTimeStringFormat, StringComparison.OrdinalIgnoreCase) 
-				? DateTimeStyles.RoundtripKind 
+			DateTimeStyle = "o".Equals(DateTimeStringFormat, StringComparison.OrdinalIgnoreCase)
+				|| "r".Equals(DateTimeStringFormat, StringComparison.OrdinalIgnoreCase)
+				? DateTimeStyles.RoundtripKind
 				: DateTimeStyles.None;
-			_openOptions = new(path, (int)OpenFlags, vfsName);
+
+			bool canBePooled = !(!Pooling
+				|| path.Length == 0
+				|| (OpenFlags & SQLiteOpenFlags.SQLITE_OPEN_MEMORY) == SQLiteOpenFlags.SQLITE_OPEN_MEMORY
+				|| path.Equals(":memory:", StringComparison.OrdinalIgnoreCase));
+
+			_openOptions = new(path, (int)OpenFlags, vfsName, canBePooled);
 		}
 		/// <summary>
 		/// Using DatabasePath + Open flags hash code for pooling unique key

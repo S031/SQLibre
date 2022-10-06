@@ -33,7 +33,7 @@ namespace SQLibre
 	/// </summary>
 	public sealed class SQLiteConnection : IDisposable
 	{
-		internal const string MainDatabaseName = "main";
+		internal const string MainDatabaseName = Core.DbOpenOptions.MainDatabaseName;
 
 		private IntPtr _handle;
 		private int _inTransaction;
@@ -151,6 +151,7 @@ namespace SQLibre
 		public void Dispose()
 		{
 			State = ConnectionState.Closed;
+			SQLiteConnectionPool.Remove(Handle, false);
 			GC.SuppressFinalize(this);
 		}
 
@@ -168,10 +169,9 @@ namespace SQLibre
 
 		public static void DropDb(SQLiteConnectionOptions options)
 		{
-			// add poll.Remove(connection) before 
 			if (File.Exists(options.DatabasePath))
 			{
-				SQLiteConnectionPool.Remove(new SQLiteConnection(options).Handle);
+				SQLiteConnectionPool.Remove(new SQLiteConnection(options).Handle, true);
 				File.Delete(options.DatabasePath);
 			}
 		}
