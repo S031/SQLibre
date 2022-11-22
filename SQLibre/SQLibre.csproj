@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net7.0</TargetFramework>
 		<RuntimeIdentifier1>win-x64</RuntimeIdentifier1>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
@@ -18,8 +18,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Folder Include="lib\win-x64\" />
-		<Folder Include="lib\win-x86\" />
+	  <ContentWithTargetPath Remove="lib\win-x64\sqlite3.dll" />
 	</ItemGroup>
 
 	<ItemGroup>

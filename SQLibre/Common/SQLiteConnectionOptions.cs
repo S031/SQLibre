@@ -6,7 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SQLibre.Core;
-using raw = SQLibre.Core.Raw;
+//#pragma warning disable CS8981 // The type name only contains lower-cased ascii characters. Such names may become reserved for the language.
+using _raw = SQLibre.Core.Raw;
+//#pragma warning restore CS8981 // The type name only contains lower-cased ascii characters. Such names may become reserved for the language.
 
 namespace SQLibre
 {
@@ -16,37 +18,37 @@ namespace SQLibre
 	[Flags]
 	public enum SQLiteOpenFlags
 	{
-		SQLITE_OPEN_READONLY = raw.SQLITE_OPEN_READONLY  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_READWRITE = raw.SQLITE_OPEN_READWRITE  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_CREATE = raw.SQLITE_OPEN_CREATE  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_DELETEONCLOSE = raw.SQLITE_OPEN_DELETEONCLOSE  /* VFS only */
-		, SQLITE_OPEN_EXCLUSIVE = raw.SQLITE_OPEN_EXCLUSIVE  /* VFS only */
-		, SQLITE_OPEN_AUTOPROXY = raw.SQLITE_OPEN_AUTOPROXY /* VFS only */
-		, SQLITE_OPEN_URI = raw.SQLITE_OPEN_URI  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_MEMORY = raw.SQLITE_OPEN_MEMORY /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_MAIN_DB = raw.SQLITE_OPEN_MAIN_DB  /* VFS only */
-		, SQLITE_OPEN_TEMP_DB = raw.SQLITE_OPEN_TEMP_DB  /* VFS only */
-		, SQLITE_OPEN_TRANSIENT_DB = raw.SQLITE_OPEN_TRANSIENT_DB  /* VFS only */
-		, SQLITE_OPEN_MAIN_JOURNAL = raw.SQLITE_OPEN_MAIN_JOURNAL  /* VFS only */
-		, SQLITE_OPEN_TEMP_JOURNAL = raw.SQLITE_OPEN_TEMP_JOURNAL  /* VFS only */
-		, SQLITE_OPEN_SUBJOURNAL = raw.SQLITE_OPEN_SUBJOURNAL /* VFS only */
-		, SQLITE_OPEN_MASTER_JOURNAL = raw.SQLITE_OPEN_MASTER_JOURNAL /* VFS only */
-		, SQLITE_OPEN_NOMUTEX = raw.SQLITE_OPEN_NOMUTEX  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_FULLMUTEX = raw.SQLITE_OPEN_FULLMUTEX  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_SHAREDCACHE = raw.SQLITE_OPEN_SHAREDCACHE /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_PRIVATECACHE = raw.SQLITE_OPEN_PRIVATECACHE  /* Ok for sqlite3_open_v2() */
-		, SQLITE_OPEN_WAL = raw.SQLITE_OPEN_WAL  /* VFS only */
+		SQLITE_OPEN_READONLY = _raw.SQLITE_OPEN_READONLY  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_READWRITE = _raw.SQLITE_OPEN_READWRITE  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_CREATE = _raw.SQLITE_OPEN_CREATE  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_DELETEONCLOSE = _raw.SQLITE_OPEN_DELETEONCLOSE  /* VFS only */
+		, SQLITE_OPEN_EXCLUSIVE = _raw.SQLITE_OPEN_EXCLUSIVE  /* VFS only */
+		, SQLITE_OPEN_AUTOPROXY = _raw.SQLITE_OPEN_AUTOPROXY /* VFS only */
+		, SQLITE_OPEN_URI = _raw.SQLITE_OPEN_URI  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_MEMORY = _raw.SQLITE_OPEN_MEMORY /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_MAIN_DB = _raw.SQLITE_OPEN_MAIN_DB  /* VFS only */
+		, SQLITE_OPEN_TEMP_DB = _raw.SQLITE_OPEN_TEMP_DB  /* VFS only */
+		, SQLITE_OPEN_TRANSIENT_DB = _raw.SQLITE_OPEN_TRANSIENT_DB  /* VFS only */
+		, SQLITE_OPEN_MAIN_JOURNAL = _raw.SQLITE_OPEN_MAIN_JOURNAL  /* VFS only */
+		, SQLITE_OPEN_TEMP_JOURNAL = _raw.SQLITE_OPEN_TEMP_JOURNAL  /* VFS only */
+		, SQLITE_OPEN_SUBJOURNAL = _raw.SQLITE_OPEN_SUBJOURNAL /* VFS only */
+		, SQLITE_OPEN_MASTER_JOURNAL = _raw.SQLITE_OPEN_MASTER_JOURNAL /* VFS only */
+		, SQLITE_OPEN_NOMUTEX = _raw.SQLITE_OPEN_NOMUTEX  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_FULLMUTEX = _raw.SQLITE_OPEN_FULLMUTEX  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_SHAREDCACHE = _raw.SQLITE_OPEN_SHAREDCACHE /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_PRIVATECACHE = _raw.SQLITE_OPEN_PRIVATECACHE  /* Ok for sqlite3_open_v2() */
+		, SQLITE_OPEN_WAL = _raw.SQLITE_OPEN_WAL  /* VFS only */
 		, SQLITE_OPEN_NOFOLLOW = 0x01000000  /* Ok for sqlite3_open_v2() */
 		, SQLITE_OPEN_EXRESCODE = 0x02000000  /* Extended result codes */
 	}
 	public enum SQLiteEncoding
 	{
-		Utf8 = raw.SQLITE_UTF8,
-		Utf16le = raw.SQLITE_UTF16LE,
-		Utf16be = raw.SQLITE_UTF16BE,
-		Utf16 = raw.SQLITE_UTF16,  /* Use native byte order */
-		SQLITE_ANY = raw.SQLITE_ANY,  /* sqlite3_create_function only */
-		SQLITE_UTF16_ALIGNED = raw.SQLITE_UTF16_ALIGNED  /* sqlite3_create_function only */
+		Utf8 = _raw.SQLITE_UTF8,
+		Utf16le = _raw.SQLITE_UTF16LE,
+		Utf16be = _raw.SQLITE_UTF16BE,
+		Utf16 = _raw.SQLITE_UTF16,  /* Use native byte order */
+		SQLITE_ANY = _raw.SQLITE_ANY,  /* sqlite3_create_function only */
+		SQLITE_UTF16_ALIGNED = _raw.SQLITE_UTF16_ALIGNED  /* sqlite3_create_function only */
 	}
 
 	public enum SQLiteJournalMode : int
