@@ -5,7 +5,7 @@ using static SQLibre.Core.Raw;
 
 namespace SQLibre
 {
-	public static class SQLiteonnectionExtensions
+	public static class SQLiteConnectionExtensions
 	{
 		public static JsonElement ExecuteJson(this SQLiteCommand command, JsonSerializerOptions? options = null)
 		{
