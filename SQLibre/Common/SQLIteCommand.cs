@@ -23,12 +23,12 @@ namespace SQLibre
 
 	public  sealed partial class SQLiteCommand : IDisposable
 	{
-		private SQLiteContext _context;
+		private SQLiteConnection _connection;
 		private List<IntPtr> _statements = new(1);
 
-		internal SQLiteCommand(SQLiteContext context, ReadOnlySpan<byte> statement, int commandTimeout = 0)
+		internal SQLiteCommand(SQLiteConnection connection, ReadOnlySpan<byte> statement, int commandTimeout = 0)
 		{
-			_context = context;
+			_connection = connection;
 			CommandTimeout = commandTimeout;
 			PrepareStatements(statement);
 			RefCounter.Add();
@@ -36,7 +36,7 @@ namespace SQLibre
 
 		public int CommandTimeout { get; set; }
 
-		public SQLiteContext Context => _context;
+		public SQLiteConnection Connection => _connection;
 
 		internal List<IntPtr> Statements => _statements;
 
@@ -85,7 +85,7 @@ namespace SQLibre
 				timer.Start();
 
 				ReadOnlySpan<byte> tail;
-				while (IsBusy(rc = sqlite3_prepare_v2(_context.Handle, sql.Slice(start), out stmt, out tail)))
+				while (IsBusy(rc = sqlite3_prepare_v2(_connection.Handle, sql.Slice(start), out stmt, out tail)))
 				{
 					if (commandTimeout != 0
 						&& timer.ElapsedMilliseconds >= commandTimeout * 1000L)
@@ -99,7 +99,7 @@ namespace SQLibre
 				timer.Stop();
 				start = sql.Length - tail.Length;
 
-				CheckOK(_context.Handle, rc);
+				CheckOK(_connection.Handle, rc);
 
 				// Statement was empty, white space, or a comment
 				if (stmt == IntPtr.Zero)
@@ -117,7 +117,7 @@ namespace SQLibre
 		public void Dispose()
 		{
 			DisposeStatements();
-			_context.RemoveCommand(this);
+			_connection.RemoveCommand(this);
 			GC.SuppressFinalize(this);
 			RefCounter.Remove();
 		}

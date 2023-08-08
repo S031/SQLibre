@@ -31,7 +31,7 @@ namespace SQLibre
 		private List<IntPtr> _statements;
 		private SQLiteColumnCollection? _collumns;
 		private object?[]? _values;
-		private readonly SQLiteContext _context;
+		private readonly SQLiteConnection _connection;
 		private SQLiteCommand _command;
 		private bool _storeDateTimeAsTicks;
 		private string _dateTimeSqliteDefaultFormat;
@@ -42,11 +42,11 @@ namespace SQLibre
 
 		internal SQLiteReader(SQLiteCommand command)
 		{
-			_context = command.Context;
+			_connection = command.Connection;
 			_statements = command.Statements;
-			_storeDateTimeAsTicks = _context.Connection.StoreDateTimeAsTicks;
-			_dateTimeSqliteDefaultFormat = _context.Connection.DateTimeSqliteDefaultFormat;
-			_dateTimeStyle = _context.Connection.DateTimeStyle;
+			_storeDateTimeAsTicks = _connection.StoreDateTimeAsTicks;
+			_dateTimeSqliteDefaultFormat = _connection.DateTimeSqliteDefaultFormat;
+			_dateTimeStyle = _connection.DateTimeStyle;
 			_command = command;
 			_current = -1;
 			//_stmt = _statements[_current];
@@ -77,7 +77,7 @@ namespace SQLibre
 			}
 
 			var result = sqlite3_step(_stmt);
-			CheckOK(_context.Handle, result);
+			CheckOK(_connection.Handle, result);
 			if (result != Raw.SQLITE_DONE)
 			{
 				if (_collumns == null)
@@ -167,7 +167,7 @@ namespace SQLibre
 
 					_timer.Stop();
 
-					CheckOK(_context.Handle, rc);
+					CheckOK(_connection.Handle, rc);
 
 					// It's a SELECT statement
 					if (sqlite3_column_count(stmt) != 0)
@@ -182,12 +182,12 @@ namespace SQLibre
 					while (rc != SQLITE_DONE)
 					{
 						rc = sqlite3_step(stmt);
-						CheckOK(_context.Handle, rc);
+						CheckOK(_connection.Handle, rc);
 					}
 
 					_ = sqlite3_reset(stmt);
 
-					var changes = sqlite3_changes(_context.Handle);
+					var changes = sqlite3_changes(_connection.Handle);
 					if (_recordsAffected == -1)
 						_recordsAffected = changes;
 					else
@@ -227,13 +227,13 @@ namespace SQLibre
 			if (rowIdIndex == -1)
 				throw new InvalidOperationException($"{nameof(GetStream)} method required a RowId column in {nameof(SQLiteReader)}");
 
-			var handle = _context.Connection.Handle;
+			var handle = _connection.Handle;
 			var blobDatabaseName = (Utf8z)sqlite3_column_database_name(_stmt, ordinal);
 			var blobTableName = (Utf8z)sqlite3_column_table_name(_stmt, ordinal);
 			var blobColumnName = (Utf8z)sqlite3_column_origin_name(_stmt, ordinal);
 			long rowid = GetInt64(rowIdIndex);
 
-			return new SQLiteBlob(_context.Connection, blobDatabaseName, blobTableName, blobColumnName, rowid, readOnly: true);
+			return new SQLiteBlob(_connection, blobDatabaseName, blobTableName, blobColumnName, rowid, readOnly: true);
 		}
 
 		public TextReader GetTextReader(int ordinal)

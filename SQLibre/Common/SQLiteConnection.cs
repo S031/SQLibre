@@ -12,6 +12,7 @@ using static SQLibre.Core.Raw;
 using static SQLibre.Core.Raw.NativeMethods;
 using static SQLibre.SQLiteException;
 using System.Runtime.Loader;
+using System.Windows.Input;
 
 namespace SQLibre
 {
@@ -34,11 +35,14 @@ namespace SQLibre
 	public sealed class SQLiteConnection : IDisposable
 	{
 		internal const string MainDatabaseName = Core.DbOpenOptions.MainDatabaseName;
+		private static readonly object _lock = new object();
 
 		private IntPtr _handle;
 		private int _inTransaction;
 
 		private readonly SQLiteConnectionOptions _connectionOptions;
+		private readonly List<WeakReference<SQLiteCommand>> _commands = new();
+
 		public string DateTimeSqliteDefaultFormat => _connectionOptions.DateTimeStringFormat;
 		public bool StoreDateTimeAsTicks => _connectionOptions.StoreDateTimeAsTicks;
 		public bool StoreTimeSpanAsTicks => _connectionOptions.StoreTimeSpanAsTicks;
@@ -93,80 +97,6 @@ namespace SQLibre
 			Execute("rollback transaction;");
 		}
 
-		public int Execute(string commandText)
-			=> ExecuteInternal(_handle, (Utf8z)commandText);
-
-		public int Execute(ReadOnlySpan<byte> commandText)
-			=> ExecuteInternal(_handle, commandText);
-
-		public void Using(Action<SQLiteContext> usingDelegate)
-		{
-			using (SQLiteContext ctx = new SQLiteContext(this))
-			{
-				if (!UsingAutoCommit)
-					usingDelegate(ctx);
-				else
-				{
-					try
-					{
-						BeginTransaction();
-						usingDelegate(ctx);
-						Commit();
-					}
-					catch
-					{
-						Rollback();
-						throw;
-					}
-				}
-			}
-		}
-
-		public T Using<T>(Func<SQLiteContext, T> usingDelegate)
-		{
-			using (SQLiteContext ctx = new SQLiteContext(this))
-			{
-				if (!UsingAutoCommit)
-					return usingDelegate(ctx);
-				else
-				{
-					try
-					{
-						BeginTransaction();
-						var result = usingDelegate(ctx);
-						Commit();
-						return result;
-					}
-					catch
-					{
-						Rollback(); ;
-						throw;
-					}
-				}
-			}
-		}
-
-		public void Close() => Dispose();
-
-		public void Dispose()
-		{
-			State = ConnectionState.Closed;
-			SQLiteConnectionPool.Remove(Handle, false);
-			GC.SuppressFinalize(this);
-		}
-
-		internal static unsafe int ExecuteInternal(DbHandle db, ReadOnlySpan<byte> statement)
-		{
-			var rc = sqlite3_exec(db, (Utf8z)statement, IntPtr.Zero, IntPtr.Zero, out var p_errMsg);
-			if (p_errMsg != IntPtr.Zero)
-			{
-				var error = new Utf8z(p_errMsg).ToString();
-				sqlite3_free(p_errMsg);
-				throw new SQLiteException(rc, error);
-			}
-			return rc;
-		}
-
 		public static void DropDb(SQLiteConnectionOptions options)
 		{
 			if (File.Exists(options.DatabasePath))
@@ -202,5 +132,154 @@ namespace SQLibre
 				}
 			}
 		}
+
+		public int Execute(string commandText)
+			=> ExecuteInternal(_handle, (Utf8z)commandText);
+
+		public int Execute(ReadOnlySpan<byte> commandText)
+			=> ExecuteInternal(_handle, commandText);
+
+		internal static unsafe int ExecuteInternal(DbHandle db, ReadOnlySpan<byte> statement)
+		{
+			var rc = sqlite3_exec(db, (Utf8z)statement, IntPtr.Zero, IntPtr.Zero, out var p_errMsg);
+			if (p_errMsg != IntPtr.Zero)
+			{
+				var error = new Utf8z(p_errMsg).ToString();
+				sqlite3_free(p_errMsg);
+				throw new SQLiteException(rc, error);
+			}
+			return rc;
+		}
+
+		public int Execute(string commandText, params object[] parameters)
+		{
+			using (SQLiteCommand cmd = CreateCommand(commandText))
+			{
+				int i = 0;
+				string pName = string.Empty;
+
+				foreach (var p in parameters)
+				{
+					if (i % 2 == 0)
+						pName = (string)(p ?? throw new ArgumentNullException(nameof(parameters)));
+					else
+						cmd.Bind(pName, p);
+					i++;
+				}
+				return cmd.Execute();
+			}
+		}
+
+		public T? ExecuteScalar<T>(string commandText, params object[] parameters)
+		{
+			using (SQLiteCommand cmd = CreateCommand(commandText))
+			{
+				int i = 0;
+				string pName = string.Empty;
+
+				foreach (var p in parameters)
+				{
+					if (i % 2 == 0)
+						pName = (string)(p ?? throw new ArgumentNullException(nameof(parameters)));
+					else
+						cmd.Bind(pName, p);
+					i++;
+				}
+
+				using (var r = cmd.ExecuteReader())
+				{
+					if (r.Read())
+						return (T?)r.GetValue(0);
+					return default;
+				}
+			}
+		}
+
+		public SQLiteReader ExecuteReader(string commandText, params object[] parameters)
+		{
+			SQLiteCommand cmd = CreateCommand(commandText);
+			int i = 0;
+			string pName = string.Empty;
+
+			foreach (var p in parameters)
+			{
+				if (i % 2 == 0)
+					pName = (string)(p ?? throw new ArgumentNullException(nameof(parameters)));
+				else
+					cmd.Bind(pName, p);
+				i++;
+			}
+
+			return cmd.ExecuteReader();
+		}
+
+		public SQLiteCommand CreateCommand(string statement) => CreateCommand((ReadOnlySpan<byte>)(Utf8z)statement);
+
+		public SQLiteCommand CreateCommand(ReadOnlySpan<byte> statement)
+		{
+			var cmd = new SQLiteCommand(this, statement);
+			AddCommand(cmd);
+			return cmd;
+		}
+
+		public long LastInsertRowId()
+			=> sqlite3_last_insert_rowid(Handle);
+
+		public void Close() => Dispose();
+
+		public void Dispose()
+		{
+			ClearCommandsCollection();
+			State = ConnectionState.Closed;
+			SQLiteConnectionPool.Remove(Handle, false);
+			GC.SuppressFinalize(this);
+		}
+		private void ClearCommandsCollection()
+		{
+			Monitor.Enter(_lock);
+			try
+			{
+				for (var i = _commands.Count - 1; i >= 0; i--)
+				{
+					var reference = _commands[i];
+					if (reference.TryGetTarget(out var command))
+						command.Dispose();
+					else
+						_commands.RemoveAt(i);
+				}
+			}
+			catch { throw; }
+			finally { Monitor.Exit(_lock); }
+		}
+
+		internal void AddCommand(SQLiteCommand command)
+		{
+			Monitor.Enter(_lock);
+			try
+			{
+				_commands.Add(new WeakReference<SQLiteCommand>(command));
+			}
+			catch { throw; }
+			finally { Monitor.Exit(_lock); }
+		}
+
+		internal void RemoveCommand(SQLiteCommand command)
+		{
+			Monitor.Enter(_lock);
+			try
+			{
+				for (var i = _commands.Count - 1; i >= 0; i--)
+				{
+					if (_commands[i].TryGetTarget(out var item)
+						&& item == command)
+					{
+						_commands.RemoveAt(i);
+					}
+				}
+			}
+			catch { throw; }
+			finally { Monitor.Exit(_lock); }
+		}
+
 	}
 }

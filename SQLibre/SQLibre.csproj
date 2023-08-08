@@ -18,6 +18,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Common\SQLiteContext.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <ContentWithTargetPath Remove="lib\win-x64\sqlite3.dll" />
 	</ItemGroup>
 

@@ -37,10 +37,10 @@ namespace SQLibre
 		private static int BindValue(IntPtr stmt, int paramIndex, IEnumerable<string> paramValue) => BindValue(stmt, paramIndex, !paramValue.Any() ? "[]" : "[\"" + string.Join("\",\"", paramValue) + "\"]");
 		private static int BindValue(IntPtr stmt, int paramIndex, string paramValue) => sqlite3_bind_text(stmt, paramIndex, paramValue);
 		private static int BindValue(IntPtr stmt, int paramIndex, Guid paramValue) => sqlite3_bind_text(stmt, paramIndex, paramValue.ToString());
-		private int BindValue(IntPtr stmt, int paramIndex, DateTime paramValue) => _context.Connection.StoreDateTimeAsTicks ? sqlite3_bind_int64(stmt, paramIndex, paramValue.Ticks)
-					: sqlite3_bind_text(stmt, paramIndex, paramValue.ToString(_context.Connection.DateTimeSqliteDefaultFormat));
+		private int BindValue(IntPtr stmt, int paramIndex, DateTime paramValue) => _connection.StoreDateTimeAsTicks ? sqlite3_bind_int64(stmt, paramIndex, paramValue.Ticks)
+					: sqlite3_bind_text(stmt, paramIndex, paramValue.ToString(_connection.DateTimeSqliteDefaultFormat));
 		private int BindValue(IntPtr stmt, int paramIndex, TimeSpan paramValue) =>
-			_context.Connection.StoreDateTimeAsTicks
+			_connection.StoreDateTimeAsTicks
 			? sqlite3_bind_int64(stmt, paramIndex, paramValue.Ticks)
 			: sqlite3_bind_text(stmt, paramIndex, paramValue.ToString());
 		#endregion internal

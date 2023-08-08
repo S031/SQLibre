@@ -20,25 +20,24 @@ SQLiteConnectionOptions testOptions = new SQLiteConnectionOptions(test_db);
 
 SQLiteConnection.DropDb(new SQLiteConnectionOptions(test_db) { Pooling = false });
 SQLiteConnection.CreateDb(testOptions, SQLiteEncoding.Utf16);
-var c = new SQLiteConnection(testOptions);
-c.Using(ctx=>
+using (var c = new SQLiteConnection(testOptions))
 {
 	Console.WriteLine($"Database {c.Handle.FileName()}");
-	Console.WriteLine($"created with encoding {ctx.ExecuteScalar<string>("PRAGMA encoding;")} and journal = {ctx.ExecuteScalar<string>("PRAGMA journal_mode;")}");
-});
+	Console.WriteLine($"created with encoding {c.ExecuteScalar<string>("PRAGMA encoding;")} and journal = {c.ExecuteScalar<string>("PRAGMA journal_mode;")}");
+}
 SQLiteConnection.DropDb(new SQLiteConnectionOptions(test_db));
 Console.WriteLine("End create database test");
 
 string sql = @"select * from invoices order by RowId desc Limit 2;";
 Console.WriteLine("Connection open test");
 DateTime d = DateTime.Now;
-	new SQLiteConnection(connectionOptionsNoMutex).Using(ctx =>
+for (int i = 0; i < loop_count; i++)
+{
+	using (var c = new SQLiteConnection(connectionOptionsNoMutex))
 	{
-		for (int i = 0; i < loop_count; i++)
-		{
-			ctx.Execute(sql);
-		}
-	});
+		//c.Execute(sql);
+	}
+}
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
 
@@ -48,12 +47,7 @@ d = DateTime.Now;
 for (int i = 0; i < loop_count; i++)
 {
 	using (var testDb = new SQLiteConnection(memory_db))
-	{
-		testDb.Using(ctx =>
-		{
-			ctx.Execute("SELECT COUNT(*) FROM sqlite_master;");
-		});
-	}
+		testDb.Execute("SELECT COUNT(*) FROM sqlite_master;");
 }
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
@@ -104,13 +98,10 @@ string sql2 = @"select * from playlist_track Limit @limit;";
 string sql3 = @"SELECT *, rowid as RowId FROM employees Order By rowid desc limit @limit;";
 
 JsonElement r = default;
-var db = new SQLiteConnection(connectionOptions);
+using var db = new SQLiteConnection(connectionOptions);
+using (var cmd = db.CreateCommand(sql).Bind(1, 412))
+	r = cmd.ExecuteJson();
 
-db.Using(ctx =>
-	{
-		using (var cmd = ctx.CreateCommand(sql).Bind(1, 412))
-			r = cmd.ExecuteJson();
-	});
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
@@ -119,11 +110,8 @@ d = DateTime.Now;
 db.Execute("begin transaction;");
 for (int i = 0; i < loop_count; i++)
 {
-	db.Using(ctx =>
-	{
-		using (var cmd = ctx.CreateCommand(sql).Bind(1, 412))
-			r = cmd.ExecuteJson();
-	});
+	using (var cmd = db.CreateCommand(sql).Bind(1, 412))
+		r = cmd.ExecuteJson();
 }
 db.Execute("commit transaction;");
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
@@ -132,14 +120,11 @@ Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCo
 
 Console.WriteLine("Start parallel select test");
 d = DateTime.Now;
-var db2 = new SQLiteConnection(connectionOptions);
+using var db2 = new SQLiteConnection(connectionOptions);
 var t = Parallel.For(0, loop_count, i =>
 {
-	db2.Using(ctx =>
-	{
-		using (var cmd = ctx.CreateCommand(sql).Bind(1, 412))
+		using (var cmd = db2.CreateCommand(sql).Bind(1, 412))
 			r = cmd.ExecuteJson();
-	});
 });
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 Console.WriteLine(r.GetProperty("BillingCountry").GetString());
@@ -149,38 +134,33 @@ Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCo
 Console.WriteLine("Start select reader test");
 d = DateTime.Now;
 int count = 0;
-db2 = new SQLiteConnection(connectionOptionsNoMutex);
-db2.Using(ctx =>
-{
-	using (SQLiteReader? r1 = ctx.CreateCommand(sql2)
-		.Bind("@limit", 20000)
-		.ExecuteReader())
-		for (; r1?.Read() ?? false;)
-		{
-			_ = r1.GetInt32(0);
-			count++;
-		}
-});
+using (var cmd = db2.CreateCommand(sql2).Bind("@limit", 20000))
+using (SQLiteReader? r1 = cmd.ExecuteReader())
+{ 
+	for (; r1?.Read() ?? false;)
+	{
+		_ = r1.GetInt32(0);
+		count++;
+	}
+};
 Console.WriteLine($"Finished {count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
-db.Using(ctx =>
+using (var cmd = db.CreateCommand(sql3).Bind("@limit", 5))
+using (SQLiteReader? r1 = cmd.ExecuteReader())
 {
-	using (SQLiteReader? r1 = ctx.ExecuteReader(sql3, "@limit", 5))
+	for (; r1?.Read() ?? false;)
 	{
-		for (; r1?.Read() ?? false;)
+		using (var source = r1.GetStream(1))
+		using (var taget = new MemoryStream(Convert.ToInt32(source.Length)))
 		{
-			using (var source = r1.GetStream(1))
-			using (var taget = new MemoryStream(Convert.ToInt32(source.Length)))
-			{
-				source.CopyTo(taget);
-				var lastName = Encoding.Default.GetString(taget.ToArray());
-				Console.WriteLine($"Id = {r1.GetInt32(0)} LastName = {lastName} FirstName = {r1.GetString(2)} Phone = {r1.GetString(12)}..");
-			}
+			source.CopyTo(taget);
+			var lastName = Encoding.Default.GetString(taget.ToArray());
+			Console.WriteLine($"Id = {r1.GetInt32(0)} LastName = {lastName} FirstName = {r1.GetString(2)} Phone = {r1.GetString(12)}..");
 		}
 	}
-});
+}
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
@@ -197,7 +177,7 @@ const string sql7 = @"insert into Test (ID, Name, CreationTime)
 
 
 Console.WriteLine("Start bulk insert rows test");
-db.Using(async ctx =>
+using (var ctx = new SQLiteConnection(connectionOptions))
 {
 	ctx.Execute(sql5);
 	ctx.Execute(sql4);
@@ -225,31 +205,28 @@ db.Using(async ctx =>
 		else
 			Console.WriteLine($"CArray test return ops(((");
 	//db.Execute(sql5);
-});
+}
 
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
 
 Console.WriteLine("Start reader next result test");
-new SQLiteConnection(connectionOptions).Using(ctx =>
+using (SQLiteReader? r1 = db.CreateCommand(sql2 + sql3 + "PRAGMA encoding;" + sql2)
+.Bind("@limit", 5)
+.ExecuteReader())
 {
-	using (SQLiteReader? r1 = ctx
-	.CreateCommand(sql2 + sql3 + "PRAGMA encoding;" + sql2)
-	.Bind("@limit", 5)
-	.ExecuteReader())
+	do
 	{
-		do
-		{
 
-			Console.WriteLine($"Sql Command: {r1.Sql}");
-			for (; r1?.Read() ?? false;)
-			{
-				Console.WriteLine($"FirstField = {r1.GetInt32(0)}\tSecondField = {r1.GetInt32(1)}");
-			}
-		} while (r1?.NextResult() ?? false);
-	}
-});
+		Console.WriteLine($"Sql Command: {r1.Sql}");
+		for (; r1?.Read() ?? false;)
+		{
+			Console.WriteLine($"FirstField = {r1.GetInt32(0)}\tSecondField = {r1.GetInt32(1)}");
+		}
+	} while (r1?.NextResult() ?? false);
+}
+db?.Dispose();
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 Console.ReadLine();
