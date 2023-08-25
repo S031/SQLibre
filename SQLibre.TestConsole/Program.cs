@@ -216,14 +216,18 @@ using (SQLiteReader? r1 = db.CreateCommand(sql2 + sql3 + "PRAGMA encoding;" + sq
 .Bind("@limit", 5)
 .ExecuteReader())
 {
+	int resultNumber = 0;
 	do
 	{
-
 		Console.WriteLine($"Sql Command: {r1.Sql}");
 		for (; r1?.Read() ?? false;)
 		{
-			Console.WriteLine($"FirstField = {r1.GetInt32(0)}\tSecondField = {r1.GetInt32(1)}");
+			if (resultNumber == 2)
+				Console.WriteLine($"FirstField = {r1.GetString(0)}");
+			else
+				Console.WriteLine($"FirstField = {r1.GetValue(0)}\tSecondField = {r1.GetValue(1)}");
 		}
+		resultNumber++;
 	} while (r1?.NextResult() ?? false);
 }
 db?.Dispose();
