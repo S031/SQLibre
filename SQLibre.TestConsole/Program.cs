@@ -107,13 +107,13 @@ Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCo
 
 Console.WriteLine("Start normal select test");
 d = DateTime.Now;
-db.Execute("begin transaction;");
+db.BeginTransaction();
 for (int i = 0; i < loop_count; i++)
 {
 	using (var cmd = db.CreateCommand(sql).Bind(1, 412))
 		r = cmd.ExecuteJson();
 }
-db.Execute("commit transaction;");
+db.Commit();
 Console.WriteLine($"Finished {loop_count} calls with {(DateTime.Now - d).TotalSeconds} ms");
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
@@ -177,26 +177,26 @@ const string sql7 = @"insert into Test (ID, Name, CreationTime)
 
 
 Console.WriteLine("Start bulk insert rows test");
-using (var ctx = new SQLiteConnection(connectionOptions))
+using (var cn = new SQLiteConnection(connectionOptions))
 {
-	ctx.Execute(sql5);
-	ctx.Execute(sql4);
+	cn.Execute(sql5);
+	cn.Execute(sql4);
 	d = DateTime.Now;
-	ctx.Execute("begin transaction;");
-	using (var stmt = ctx.CreateCommand(sql7))
+	cn.BeginTransaction();
+	using (var stmt = cn.CreateCommand(sql7))
 		for (int i = 0; i < loop_count * 10; i++)
 			//Parallel.For(0, loop_count * 10, i =>
 			await stmt.Bind("@ID", i)
 				.Bind("@Name", $"This is a name of {i}")
 				.Bind("@CreationTime", DateTime.Now)
 				.ExecuteAsync(CancellationToken.None);
-	ctx.Execute("commit transaction;");
+	cn.Commit();
 	var total = (DateTime.Now - d).TotalSeconds;
-	count = Convert.ToInt32(ctx.CreateCommand("Select count(*) from Test").ExecuteScalar<long>());
+	count = Convert.ToInt32(cn.CreateCommand("Select count(*) from Test").ExecuteScalar<long>());
 	Console.WriteLine($"Finished {count} calls with {total} ms");
 	Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
 
-	using (var r1 = ctx.CreateCommand("Select Count(value) from json_each(?) where value = 300.14")
+	using (var r1 = cn.CreateCommand("Select Count(value) from json_each(?) where value = 300.14")
 		//.Bind(1, new string[] { "five", "six", "seven", "eight" })
 		.Bind(1, new double[] { 1.11, 2.12, 300.14, 40.99 })
 		.ExecuteReader())

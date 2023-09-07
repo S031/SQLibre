@@ -72,21 +72,21 @@ namespace SQLibre
 			State = ConnectionState.Open;
 		}
 
-		public void EnableWriteAhead() => Execute("PRAGMA journal_mode=WAL");
+		public void EnableWriteAhead() => Execute("PRAGMA journal_mode=WAL"u8);
 
 		public void BeginTransaction()
 		{
 			if (_inTransaction == 1)
 				throw new InvalidOperationException("transaction already active");
 			Interlocked.Increment(ref _inTransaction);
-			Execute("begin transaction;");
+			Execute("begin transaction;"u8);
 		}
 
 		public void Commit()
 		{
 			if (_inTransaction == 0)
 				throw new InvalidOperationException("transaction does not exist");
-			Execute("commit transaction;");
+			Execute("commit transaction;"u8);
 			Interlocked.Decrement(ref _inTransaction);
 		}
 
@@ -94,7 +94,7 @@ namespace SQLibre
 		{
 			if (_inTransaction == 0)
 				throw new InvalidOperationException("transaction does not exist");
-			Execute("rollback transaction;");
+			Execute("rollback transaction;"u8);
 		}
 
 		public static void DropDb(SQLiteConnectionOptions options)
