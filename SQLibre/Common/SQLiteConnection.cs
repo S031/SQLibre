@@ -13,6 +13,7 @@ using static SQLibre.Core.Raw.NativeMethods;
 using static SQLibre.SQLiteException;
 using System.Runtime.Loader;
 using System.Windows.Input;
+using System.Data;
 
 namespace SQLibre
 {
@@ -38,7 +39,6 @@ namespace SQLibre
 		private static readonly object _lock = new object();
 
 		private IntPtr _handle;
-		private int _inTransaction;
 
 		private readonly SQLiteConnectionOptions _connectionOptions;
 		private readonly List<WeakReference<SQLiteCommand>> _commands = new();
@@ -52,7 +52,8 @@ namespace SQLibre
 		public DbHandle Handle => _handle;
 		public ConnectionState State { get; internal set; } = ConnectionState.Closed;
 		public bool UsingAutoCommit { get => _connectionOptions.UsingAutoCommit; set => _connectionOptions.UsingAutoCommit = value; }
-
+		internal SQLiteConnectionOptions ConnectionOptions => _connectionOptions;
+		internal SQLiteTransaction? Transaction { get; set; }
 
 		public static void Config(int configOptions, int value)
 			=> CheckOK(sqlite3_config(configOptions, value));
@@ -74,27 +75,29 @@ namespace SQLibre
 
 		public void EnableWriteAhead() => Execute("PRAGMA journal_mode=WAL"u8);
 
-		public void BeginTransaction()
+		public IDbTransaction BeginTransaction()
+			=>BeginTransaction(IsolationLevel.Serializable);
+
+		public IDbTransaction BeginTransaction(IsolationLevel isolationLevel)
 		{
-			if (_inTransaction == 1)
+			if (Transaction != null)
 				throw new InvalidOperationException("transaction already active");
-			Interlocked.Increment(ref _inTransaction);
-			Execute("begin transaction;"u8);
+			Transaction = new SQLiteTransaction(this, isolationLevel);
+			return Transaction;
 		}
 
 		public void Commit()
 		{
-			if (_inTransaction == 0)
+			if (Transaction == null)
 				throw new InvalidOperationException("transaction does not exist");
-			Execute("commit transaction;"u8);
-			Interlocked.Decrement(ref _inTransaction);
+			Transaction.Commit();
 		}
 
 		public void Rollback()
 		{
-			if (_inTransaction == 0)
+			if (Transaction == null)
 				throw new InvalidOperationException("transaction does not exist");
-			Execute("rollback transaction;"u8);
+			Transaction.Commit();
 		}
 
 		public static void DropDb(SQLiteConnectionOptions options)
@@ -229,6 +232,7 @@ namespace SQLibre
 
 		public void Dispose()
 		{
+			Transaction?.Dispose();
 			ClearCommandsCollection();
 			State = ConnectionState.Closed;
 			SQLiteConnectionPool.Remove(Handle, false);
