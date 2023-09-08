@@ -14,6 +14,7 @@ using System.Diagnostics;
 using System.Resources;
 using System.Reflection.Metadata;
 using System.Xml.Linq;
+using System.Data;
 
 namespace SQLibre
 {
@@ -40,7 +41,7 @@ namespace SQLibre
 			string columnName,
 			long rowid,
 			bool readOnly = false)
-			: this(connection, SQLiteConnection.MainDatabaseName, tableName, columnName, rowid, readOnly)
+			: this(connection, SQLiteConnection.main_database_name, tableName, columnName, rowid, readOnly)
 		{
 		}
 

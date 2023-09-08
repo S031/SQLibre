@@ -233,4 +233,14 @@ using (SQLiteReader? r1 = db.CreateCommand(sql2 + sql3 + "PRAGMA encoding;" + sq
 db?.Dispose();
 GC.Collect();
 Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
+
+Console.WriteLine("Start System.Data reader test");
+using (var cn = new SQLiteConnection())
+{
+	cn.ConnectionString = _connectionString;
+	cn.Open();
+}
+Console.WriteLine($"{nameof(SQLiteCommand)}Reference count: {SQLiteCommand.RefCount}");
+Console.WriteLine("End System.Data reader test");
+
 Console.ReadLine();

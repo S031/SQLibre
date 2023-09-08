@@ -10,6 +10,8 @@ using static SQLibre.Core.Raw.NativeMethods;
 using static SQLibre.SQLiteException;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Data;
+using System.Resources;
 
 namespace SQLibre
 {
@@ -21,29 +23,59 @@ namespace SQLibre
 		public static int Count => _counter;
 	}
 
-	public  sealed partial class SQLiteCommand : IDisposable
+	internal enum CommandState
 	{
-		private SQLiteConnection _connection;
-		private List<IntPtr> _statements = new(1);
+		None = 0,
+		Ready = 1,
+		Fetch = 2,
+	}
 
-		internal SQLiteCommand(SQLiteConnection connection, ReadOnlySpan<byte> statement, int commandTimeout = 0)
+	public  sealed partial class SQLiteCommand : IDbCommand
+	{
+		private SQLiteConnection? _connection;
+		private List<IntPtr> _statements = new(1);
+		private string? _commandText;
+
+		internal CommandState State { get; private set; } = CommandState.None;
+
+		internal SQLiteCommand()
+		{
+			RefCounter.Add();
+		}
+
+		internal SQLiteCommand(SQLiteConnection connection, string sql) : this(connection, (ReadOnlySpan<byte>)(Utf8z)sql)
+		{
+			_commandText = sql;
+		}
+
+		internal SQLiteCommand(SQLiteConnection connection, ReadOnlySpan<byte> sql, int commandTimeout = 0) : this()
 		{
 			_connection = connection;
 			CommandTimeout = commandTimeout;
-			PrepareStatements(statement);
-			RefCounter.Add();
+			PrepareStatements(sql);
 		}
 
 		public int CommandTimeout { get; set; }
 
-		public SQLiteConnection Connection => _connection;
+		public SQLiteConnection? Connection
+		{
+			get => _connection;
+			set
+			{
+				_connection = value;
+				if (!string.IsNullOrEmpty(_commandText))
+					Prepare();
+			}		
+		}
 
 		internal List<IntPtr> Statements => _statements;
 
 		public SQLiteReader ExecuteReader()
 		{
+			CheckRequiredState(nameof(ExecuteReader));
 			var r = new SQLiteReader(this);
 			r.NextResult();
+			//State = CommandState.Fetch;
 			return r;
 		}
 
@@ -61,6 +93,7 @@ namespace SQLibre
 
 		public T? ExecuteScalar<T>()
 		{
+			CheckRequiredState(nameof(ExecuteScalar));
 			using (var r = ExecuteReader())
 			{
 				if (r.Read())
@@ -71,6 +104,8 @@ namespace SQLibre
 
 		private void PrepareStatements(ReadOnlySpan<byte> sql)
 		{
+			_connection.CheckRequiredState(nameof(PrepareStatements));
+
 			Stopwatch timer = new();
 			DisposeStatements();
 
@@ -85,6 +120,7 @@ namespace SQLibre
 				timer.Start();
 
 				ReadOnlySpan<byte> tail;
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 				while (IsBusy(rc = sqlite3_prepare_v2(_connection.Handle, sql.Slice(start), out stmt, out tail)))
 				{
 					if (commandTimeout != 0
@@ -95,6 +131,7 @@ namespace SQLibre
 
 					Thread.Sleep(150);
 				}
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
 				timer.Stop();
 				start = sql.Length - tail.Length;
@@ -112,27 +149,102 @@ namespace SQLibre
 				_statements.Add(stmt);
 			}
 			while (start < byteCount);
+			State = CommandState.Ready;
 		}
 
 		public void Dispose()
 		{
 			DisposeStatements();
-			_connection.RemoveCommand(this);
+			_connection?.RemoveCommand(this);
 			GC.SuppressFinalize(this);
 			RefCounter.Remove();
 		}
 
 		private void DisposeStatements()
 		{
-			//dispose also reader if need
-			foreach (var p in _statements)
+			if (State == CommandState.Ready)
 			{
-				var rc = sqlite3_finalize(p);
-				CheckOK(rc);
+				//dispose also reader if need
+				foreach (var p in _statements)
+				{
+					var rc = sqlite3_finalize(p);
+					CheckOK(rc);
+				}
+				_statements.Clear();
 			}
-			_statements.Clear();
+			State = CommandState.None;
 		}
 
+		void IDbCommand.Cancel()
+		{
+		}
+
+		IDbDataParameter IDbCommand.CreateParameter() => throw new NotSupportedException();
+
+		int IDbCommand.ExecuteNonQuery() => Execute();
+
+		IDataReader IDbCommand.ExecuteReader() => ExecuteReader();
+
+		IDataReader IDbCommand.ExecuteReader(CommandBehavior behavior) => ExecuteReader();
+
+		object? IDbCommand.ExecuteScalar()
+		{
+			using (var r = ExecuteReader())
+			{
+				if (r.Read())
+					return r.GetValue(0);
+				return default;
+			}
+		}
+
+		public void Prepare()
+		{
+			if (State == CommandState.None)
+				PrepareStatements((Utf8z)_commandText);
+		}
+
+
+		unsafe string? IDbCommand.CommandText
+		{
+#pragma warning disable CS8768 // Nullability of reference types in return type doesn't match implemented member (possibly because of nullability attributes).
+			get => _commandText;
+#pragma warning restore CS8768 // Nullability of reference types in return type doesn't match implemented member (possibly because of nullability attributes).
+			set
+			{
+				_commandText = value;
+				if (_connection != null)
+					PrepareStatements((Utf8z)_commandText);
+			}
+		}
+		
+		CommandType IDbCommand.CommandType { 
+			get => CommandType.Text;
+			set
+			{
+				if (value != CommandType.Text)
+					throw new ArgumentException($"Invalid Command Type '{value}'");
+			}
+		}
+		
+		IDbConnection? IDbCommand.Connection
+		{
+			get => Connection;
+			set => Connection = value as SQLiteConnection ?? throw new InvalidOperationException($"Required argument of type {nameof(SQLiteConnection)}");
+		}
+
+		IDataParameterCollection IDbCommand.Parameters => throw new NotSupportedException();
+
+		IDbTransaction? IDbCommand.Transaction { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+		
+		UpdateRowSource IDbCommand.UpdatedRowSource { get; set; }
+		
 		public static int RefCount => RefCounter.Count;
+		
+		internal void CheckRequiredState(string sourceMethod, CommandState requiredState = CommandState.Ready)
+		{
+			_connection.CheckRequiredState(sourceMethod);
+			if (State != requiredState)
+				throw new InvalidOperationException($"Method {sourceMethod} required {requiredState} command state");
+		}
 	}
 }

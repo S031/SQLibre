@@ -1,4 +1,5 @@
 ﻿using SQLibre.Core;
+using System.Data;
 using System.Text;
 using System.Text.Json;
 using static SQLibre.Core.Raw;
@@ -40,6 +41,12 @@ namespace SQLibre
 			if (s.Length > 0)
 				return (ReadOnlySpan<byte>)s;
 			return null_utf8_string; ;
+		}
+		
+		internal static void CheckRequiredState(this SQLiteConnection? connection, string source, ConnectionState requiredState = ConnectionState.Open)
+		{
+			if (connection?.State != requiredState)
+				throw new InvalidOperationException($"Method {source} required {requiredState} connection state");
 		}
 	}
 }

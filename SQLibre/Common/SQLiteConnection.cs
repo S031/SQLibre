@@ -17,15 +17,6 @@ using System.Data;
 
 namespace SQLibre
 {
-	public enum ConnectionState : int
-	{
-		Closed = 0,
-		Open = 1,
-		Connecting = Open << 1,
-		Executing = Connecting << 1,
-		Fetching = Executing << 1,
-		Broken = Fetching << 1
-	}
 	/// <summary>
 	/// ToDo:
 	/// 1.	Command.Reader property
@@ -33,14 +24,16 @@ namespace SQLibre
 	/// 3.	Reader.NextResult call sqlite3.enable_sqlite3_next_stmt(true)
 	/// 4.	Import common featuries from SQLitePCL.Ugly
 	/// </summary>
-	public sealed class SQLiteConnection : IDisposable
+	public sealed class SQLiteConnection : IDbConnection
 	{
-		internal const string MainDatabaseName = Core.DbOpenOptions.MainDatabaseName;
+		internal const string main_database_name = Core.DbOpenOptions.MainDatabaseName;
+		internal const string memorydb_connection_string = $"DataSource={DbOpenOptions.MemoryDb}";
+
 		private static readonly object _lock = new object();
 
 		private IntPtr _handle;
 
-		private readonly SQLiteConnectionOptions _connectionOptions;
+		private SQLiteConnectionOptions _connectionOptions;
 		private readonly List<WeakReference<SQLiteCommand>> _commands = new();
 
 		public string DateTimeSqliteDefaultFormat => _connectionOptions.DateTimeStringFormat;
@@ -55,22 +48,47 @@ namespace SQLibre
 		internal SQLiteConnectionOptions ConnectionOptions => _connectionOptions;
 		internal SQLiteTransaction? Transaction { get; set; }
 
+		private string _connsectionString;
+		public string ConnectionString
+		{
+			get => _connsectionString;
+#pragma warning disable CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
+			set
+#pragma warning restore CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
+			{
+				if (State != ConnectionState.Closed)
+					throw new InvalidOperationException("Connection already opened");
+				_connsectionString = value ?? DbOpenOptions.MemoryDb;
+				_connectionOptions = new SQLiteConnectionOptions(_connsectionString);
+			}
+		}
+
+		public int ConnectionTimeout => _connectionOptions.CommandTimeout;
+
+		public string Database => Path.GetFileNameWithoutExtension(_connectionOptions.DatabasePath);
+
 		public static void Config(int configOptions, int value)
 			=> CheckOK(sqlite3_config(configOptions, value));
 
 		public static void Config(int configOptions)
 			=> CheckOK(sqlite3_config(configOptions));
 
+		public SQLiteConnection()
+		{
+		}
+
 		public SQLiteConnection(string connectionString) : this(new SQLiteConnectionOptions(connectionString))
 		{
+			_connsectionString = connectionString;
 		}
 
 		public SQLiteConnection(SQLiteConnectionOptions connectionOptions)
 		{
+			if (string.IsNullOrEmpty(_connsectionString))
+				_connsectionString = connectionOptions.DatabasePath;
+
 			_connectionOptions = connectionOptions;
-			_handle = SQLiteConnectionPool.GetConnection(_connectionOptions.OpenOptions, 100000,
-				db => ExecuteInternal(db, (Utf8z)$"PRAGMA journal_mode={connectionOptions.JournalMode}"));
-			State = ConnectionState.Open;
+			Open();
 		}
 
 		public void EnableWriteAhead() => Execute("PRAGMA journal_mode=WAL"u8);
@@ -80,6 +98,7 @@ namespace SQLibre
 
 		public IDbTransaction BeginTransaction(IsolationLevel isolationLevel)
 		{
+			CheckOpenState(nameof(BeginTransaction));
 			if (Transaction != null)
 				throw new InvalidOperationException("transaction already active");
 			Transaction = new SQLiteTransaction(this, isolationLevel);
@@ -88,6 +107,7 @@ namespace SQLibre
 
 		public void Commit()
 		{
+			CheckOpenState(nameof(Commit));
 			if (Transaction == null)
 				throw new InvalidOperationException("transaction does not exist");
 			Transaction.Commit();
@@ -95,6 +115,7 @@ namespace SQLibre
 
 		public void Rollback()
 		{
+			CheckOpenState(nameof(Rollback));
 			if (Transaction == null)
 				throw new InvalidOperationException("transaction does not exist");
 			Transaction.Commit();
@@ -104,7 +125,8 @@ namespace SQLibre
 		{
 			if (File.Exists(options.DatabasePath))
 			{
-				SQLiteConnectionPool.Remove(new SQLiteConnection(options).Handle, true);
+				using (var cn = new SQLiteConnection(options))
+					SQLiteConnectionPool.Remove(cn.Handle, true);
 				File.Delete(options.DatabasePath);
 			}
 		}
@@ -137,10 +159,16 @@ namespace SQLibre
 		}
 
 		public int Execute(string commandText)
-			=> ExecuteInternal(_handle, (Utf8z)commandText);
+		{
+			CheckOpenState(nameof(Execute));
+			return ExecuteInternal(_handle, (Utf8z)commandText);
+		}
 
 		public int Execute(ReadOnlySpan<byte> commandText)
-			=> ExecuteInternal(_handle, commandText);
+		{
+			CheckOpenState(nameof(Execute));
+			return ExecuteInternal(_handle, commandText);
+		}
 
 		internal static unsafe int ExecuteInternal(DbHandle db, ReadOnlySpan<byte> statement)
 		{
@@ -156,6 +184,7 @@ namespace SQLibre
 
 		public int Execute(string commandText, params object[] parameters)
 		{
+			CheckOpenState(nameof(Execute));
 			using (SQLiteCommand cmd = CreateCommand(commandText))
 			{
 				int i = 0;
@@ -175,6 +204,8 @@ namespace SQLibre
 
 		public T? ExecuteScalar<T>(string commandText, params object[] parameters)
 		{
+			CheckOpenState(nameof(ExecuteScalar));
+
 			using (SQLiteCommand cmd = CreateCommand(commandText))
 			{
 				int i = 0;
@@ -200,6 +231,8 @@ namespace SQLibre
 
 		public SQLiteReader ExecuteReader(string commandText, params object[] parameters)
 		{
+			CheckOpenState(nameof(ExecuteReader));
+
 			SQLiteCommand cmd = CreateCommand(commandText);
 			int i = 0;
 			string pName = string.Empty;
@@ -285,5 +318,30 @@ namespace SQLibre
 			finally { Monitor.Exit(_lock); }
 		}
 
+		public void ChangeDatabase(string databaseName) => throw new NotSupportedException();
+
+		public void Open()
+		{
+			if (State == ConnectionState.Open)
+				return;
+
+			if (State != ConnectionState.Closed)
+				throw new InvalidOperationException("Connection already opened");
+
+			_handle = SQLiteConnectionPool.GetConnection(_connectionOptions.OpenOptions, 100000,
+				db => ExecuteInternal(db, (Utf8z)$"PRAGMA journal_mode={_connectionOptions.JournalMode}"));
+			State = ConnectionState.Open;
+		}
+
+		private void CheckOpenState(string source)
+		{
+			if (State != ConnectionState.Open)
+				throw new InvalidOperationException($"Method {source} required opened connection");
+		}
+
+		IDbCommand IDbConnection.CreateCommand()
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

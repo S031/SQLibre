@@ -13,6 +13,8 @@ using System.Text.Json;
 using System.Diagnostics;
 using System.Data.Common;
 using System.Reflection.Metadata;
+using System.Data;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SQLibre
 {
@@ -25,7 +27,7 @@ namespace SQLibre
 	/// <summary>
 	/// ADO.NET DataReader like Read only && forward only cursor for result data rows iteration
 	/// </summary>
-	public sealed class SQLiteReader : IDisposable
+	public sealed class SQLiteReader : IDataReader
 	{
 		private int _recordsAffected = -1;
 		private List<IntPtr> _statements;
@@ -59,10 +61,14 @@ namespace SQLibre
 		public unsafe string? Sql => ((Utf8z)sqlite3_sql(_stmt)).ToString();
 
 		public object? this[int index]
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 			=> _collumns == null ? throw OperationImpossible("this[int index]") : Values?[index];
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 
 		public object? this[string index]
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 			=> _collumns == null ? throw OperationImpossible("this[string index]") : Values?[_collumns.ColumnIndex(index)];
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 
 		public int FieldCount
 			=> _collumns == null ? throw OperationImpossible("FieldCount") : _collumns.Count;
@@ -118,6 +124,10 @@ namespace SQLibre
 				return _values;
 			}
 		}
+
+		public int Depth => throw new NotImplementedException();
+
+		public bool IsClosed => _collumns == null;
 
 		private static unsafe SQLiteColumn ReadCol(IntPtr stmt, int index)
 		{
@@ -242,7 +252,9 @@ namespace SQLibre
 				: new StreamReader(GetStream(ordinal), Encoding.UTF8);
 
 		#region get_values
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 		public object? GetValue(int index)
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 		{
 			if (_collumns == null)
 				throw OperationImpossible(nameof(GetValue));
@@ -335,7 +347,9 @@ namespace SQLibre
 			return Convert.ToDecimal(sqlite3_column_double(_stmt, index));
 		}
 
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 		public string? GetString(int index)
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 		{
 			if (_collumns == null)
 				throw OperationImpossible(nameof(GetString));
@@ -393,6 +407,91 @@ namespace SQLibre
 				throw OperationImpossible(nameof(IsNull));
 			return _collumns[index].ColumnType == SQLiteColumnType.Null;
 		}
+
+		public void Close() => Dispose();
+
+		public DataTable? GetSchemaTable()
+		{
+			throw new NotImplementedException();
+		}
+
+		public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length)
+		{
+			throw new NotImplementedException();
+		}
+
+		public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length)
+		{
+			throw new NotImplementedException();
+		}
+
+		public IDataReader GetData(int i) => this;
+
+		public string GetDataTypeName(int i)
+		{
+			if (_collumns == null)
+				throw OperationImpossible(nameof(GetFieldType));
+			switch (_collumns[i].ColumnType)
+			{
+				case SQLiteColumnType.Text: return "TEXT";
+				case SQLiteColumnType.Float: return "REAL";
+				case SQLiteColumnType.Integer: return "INTEGER";
+				case SQLiteColumnType.Blob: return "BLOB";
+				default: throw new InvalidOperationException($"Impossible determine the type of field {_collumns[i].Name}");					
+			}
+		}
+
+		[return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
+		public Type GetFieldType(int i)
+		{
+			if (_collumns == null)
+				throw OperationImpossible(nameof(GetFieldType));
+			switch (_collumns[i].ColumnType)
+			{
+				case SQLiteColumnType.Text: return typeof(string);
+				case SQLiteColumnType.Float: return typeof(double);
+				case SQLiteColumnType.Integer: return typeof(long);
+				case SQLiteColumnType.Blob: return typeof(byte[]);
+				default: throw new InvalidOperationException($"Impossible determine the type of field {_collumns[i].Name}");					
+			}
+		}
+
+		public float GetFloat(int i) => GetSingle(i);
+
+		public Guid GetGuid(int i) => new Guid(GetString(i) ?? throw OperationImpossible(nameof(GetGuid)));
+
+		public string GetName(int i)
+		{
+			if (_collumns == null)
+				throw OperationImpossible(nameof(IsNull));
+			return _collumns[i].Name;
+		}
+
+		public int GetOrdinal(string name)
+		{
+			if (_collumns == null)
+				throw OperationImpossible(nameof(IsNull));
+			return _collumns.ColumnIndex(name);
+		}
+
+		public int GetValues(object[] values)
+		{
+			if (_collumns == null)
+				throw OperationImpossible(nameof(IsNull));
+
+			if (_values != null && values != null)
+			{
+				int count = Math.Min(values.Length, _values.Length);
+				for (int i = 0; i < count; i++)
+#pragma warning disable CS8601 // Possible null reference assignment.
+					values[i] = _values[i];
+#pragma warning restore CS8601 // Possible null reference assignment.
+				return count;
+			}
+			throw OperationImpossible(nameof(IsNull));
+		}
+
+		public bool IsDBNull(int i) => !IsNull(i) && GetValue(i) == DBNull.Value;
 
 		#endregion get_values
 	}

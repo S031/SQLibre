@@ -173,7 +173,7 @@ namespace SQLibre
 			bool canBePooled = !(!Pooling
 				|| databasePath.Length == 0
 				|| (OpenFlags & SQLiteOpenFlags.SQLITE_OPEN_MEMORY) == SQLiteOpenFlags.SQLITE_OPEN_MEMORY
-				|| databasePath.Equals(":memory:", StringComparison.OrdinalIgnoreCase));
+				|| databasePath.Equals(DbOpenOptions.MemoryDb, StringComparison.OrdinalIgnoreCase));
 
 			_openOptions = new(databasePath, (int)openFlags, vfsName, canBePooled);
 		}
